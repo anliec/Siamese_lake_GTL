@@ -1,12 +1,10 @@
 from keras.applications import VGG16
 from keras.layers import Dense, Input
 from keras.models import Model
-import h5py
-import glob
-import os
+from keras.preprocessing.image import ImageDataGenerator
 import numpy as np
-import cv2
 
+from dataset_loader import load_data_set
 from siamese import get_siamese_model
 
 
@@ -17,81 +15,56 @@ def get_siamese_vgg_model(image_shape=(224, 224, 3)):
     vgg_base = VGG16(include_top=False, input_shape=image_shape, weights='imagenet')
 
     siamese_vgg_model = get_siamese_model(vgg_base, image_shape)
+    siamese_vgg_model.trainable = False
 
-    top = Dense(128, activation="relu")(siamese_vgg_model([input_a, input_b]))
-    top = Dense(1, activation="sigmoid")(top)
+    top = Dense(512, activation="relu")(siamese_vgg_model([input_a, input_b]))
+    top = Dense(128, activation="relu")(top)
+    top = Dense(2, activation="softmax")(top)
 
-    return Model([input_a, input_b], top)
-
-
-def load_image(path: str):
-    mean_pixel = [103.939, 116.779, 123.68]
-    im = cv2.imread(path).astype(np.float32)
-    for c in range(3):
-        im[:, :, c] -= mean_pixel[c]
-    im = im.transpose((2, 0, 1))
-    im = np.expand_dims(im, axis=0)
-    return im
+    return Model(inputs=[input_a, input_b], outputs=top)
 
 
-def load_image_pair(path: str):
-    im1 = load_image(path + "image1.png")
-    im2 = load_image(path + "image2.png")
-    return im1, im2
-
-
-def load_data_set():
-    try:
-        with h5py.File('X.h5') as hf:
-            X, Y = hf['imgs'][:], hf['labels'][:]
-        print("Loaded images from X.h5")
-
-    except (IOError, OSError, KeyError):
-        print("Error in reading X.h5. Processing all images...")
-        root_dir = 'GTSRB/Final_Training/Images/'
-        imgs = []
-        labels = []
-
-        sim_img_paths = glob.glob(os.path.join(root_dir, '1/*/'))
-        dif_img_paths = glob.glob(os.path.join(root_dir, '-1/*/'))
-        np.random.shuffle(sim_img_paths)
-        np.random.shuffle(dif_img_paths)
-        for img_path in sim_img_paths:
-            try:
-                im1, im2 = load_image_pair(img_path)
-                label = True
-                imgs.append((im1, im2))
-                labels.append(label)
-
-                if len(imgs) % 100 == 0:
-                    print("Processed {}/{}".format(len(imgs), len(sim_img_paths) + len(dif_img_paths)))
-            except (IOError, OSError):
-                print('missed', img_path)
-                pass
-        for img_path in dif_img_paths:
-            try:
-                im1, im2 = load_image_pair(img_path)
-                label = False
-                imgs.append((im1, im2))
-                labels.append(label)
-
-                if len(imgs) % 100 == 0:
-                    print("Processed {}/{}".format(len(imgs), len(sim_img_paths) + len(dif_img_paths)))
-            except (IOError, OSError):
-                print('missed', img_path)
-                pass
-
-        X = np.array(imgs, dtype='float32')
-        Y = np.eye(2, dtype='uint8')[labels]
-
-        with h5py.File('X.h5', 'w') as hf:
-            hf.create_dataset('imgs', data=X)
-            hf.create_dataset('labels', data=Y)
+def data_triple_generator(datagen: ImageDataGenerator, x_im1: np.ndarray, x_im2: np.ndarray, y: np.ndarray, batch_size: int):
+    for i, ((im1, label), (im2, _)) in enumerate(zip(datagen.flow(x_im1, y, batch_size=batch_size),
+                                                     datagen.flow(x_im2, y, batch_size=batch_size))):
+        yield [im1, im2], label
+        # add vertical flip on both images ? randomly switch images ?
 
 
 if __name__ == '__main__':
-    model = get_siamese_vgg_model()
+    batch_size = 32
+    train_ratio = 0.8
 
-    model.compile(loss='binary_crossentropy',
+    x_1, x_2, y = load_data_set()
+    train_size = int(train_ratio * len(y))
+    x_1_train, x_2_train, y_train = x_1[:train_size], x_2[:train_size], y[:train_size]
+    x_1_test, x_2_test, y_test = x_1[train_size:], x_2[train_size:], y[train_size:]
+    
+    model = get_siamese_vgg_model()
+    model.summary()
+
+    model.compile(loss='categorical_crossentropy',
                   optimizer='adam',
-                  metrics=['binary_accuracy'])
+                  metrics=['categorical_accuracy'])
+
+    datagen = ImageDataGenerator(  # add shear_range ?
+        featurewise_center=True,
+        featurewise_std_normalization=True,
+        rotation_range=10,
+        width_shift_range=0.2,
+        height_shift_range=0.2,
+        zoom_range=[0.6, 1.1],
+        fill_mode='reflect',
+        horizontal_flip=False,
+        vertical_flip=False)
+
+    datagen.fit(np.append(x_1_train, x_2_train, axis=0))
+
+    triple_generator = data_triple_generator(datagen, x_1_train, x_2_train, y_train, batch_size)
+    model.fit_generator(generator=triple_generator,
+                        steps_per_epoch=len(y) // batch_size,
+                        epochs=1,
+                        verbose=1,
+                        validation_data=([x_1_test, x_2_test], y_test)
+                        )
+

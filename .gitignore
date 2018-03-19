@@ -1,2 +1,4 @@
 .idea/
-__pycaches__/
+__pycache__/
+data
+X.h5
