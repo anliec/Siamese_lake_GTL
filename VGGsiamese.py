@@ -17,8 +17,8 @@ def get_siamese_vgg_model(image_shape=(224, 224, 3)):
     siamese_vgg_model = get_siamese_model(vgg_base, image_shape)
     siamese_vgg_model.trainable = False
 
-    top = Dense(512, activation="relu")(siamese_vgg_model([input_a, input_b]))
-    top = Dense(128, activation="relu")(top)
+    top = Dense(128, activation="relu")(siamese_vgg_model([input_a, input_b]))
+#    top = Dense(128, activation="relu")(top)
     top = Dense(2, activation="softmax")(top)
 
     return Model(inputs=[input_a, input_b], outputs=top)
@@ -63,7 +63,7 @@ if __name__ == '__main__':
     triple_generator = data_triple_generator(datagen, x_1_train, x_2_train, y_train, batch_size)
     model.fit_generator(generator=triple_generator,
                         steps_per_epoch=len(y) // batch_size,
-                        epochs=1,
+                        epochs=10,
                         verbose=1,
                         validation_data=([x_1_test, x_2_test], y_test)
                         )
