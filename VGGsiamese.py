@@ -4,6 +4,8 @@ from keras.models import Model
 import h5py
 import glob
 import os
+import numpy as np
+import cv2
 
 from siamese import get_siamese_model
 
@@ -22,7 +24,23 @@ def get_siamese_vgg_model(image_shape=(224, 224, 3)):
     return Model([input_a, input_b], top)
 
 
-def load_data_set(path: str):
+def load_image(path: str):
+    mean_pixel = [103.939, 116.779, 123.68]
+    im = cv2.imread(path).astype(np.float32)
+    for c in range(3):
+        im[:, :, c] -= mean_pixel[c]
+    im = im.transpose((2, 0, 1))
+    im = np.expand_dims(im, axis=0)
+    return im
+
+
+def load_image_pair(path: str):
+    im1 = load_image(path + "image1.png")
+    im2 = load_image(path + "image2.png")
+    return im1, im2
+
+
+def load_data_set():
     try:
         with h5py.File('X.h5') as hf:
             X, Y = hf['imgs'][:], hf['labels'][:]
@@ -34,22 +52,37 @@ def load_data_set(path: str):
         imgs = []
         labels = []
 
-        all_img_paths = glob.glob(os.path.join(root_dir, '*/*.ppm'))
-        np.random.shuffle(all_img_paths)
-        for img_path in all_img_paths:
+        sim_img_paths = glob.glob(os.path.join(root_dir, '1/*/'))
+        dif_img_paths = glob.glob(os.path.join(root_dir, '-1/*/'))
+        np.random.shuffle(sim_img_paths)
+        np.random.shuffle(dif_img_paths)
+        for img_path in sim_img_paths:
             try:
-                img = preprocess_img(io.imread(img_path))
-                label = get_class(img_path)
-                imgs.append(img)
+                im1, im2 = load_image_pair(img_path)
+                label = True
+                imgs.append((im1, im2))
                 labels.append(label)
 
-                if len(imgs) % 1000 == 0: print("Processed {}/{}".format(len(imgs), len(all_img_paths)))
+                if len(imgs) % 100 == 0:
+                    print("Processed {}/{}".format(len(imgs), len(sim_img_paths) + len(dif_img_paths)))
+            except (IOError, OSError):
+                print('missed', img_path)
+                pass
+        for img_path in dif_img_paths:
+            try:
+                im1, im2 = load_image_pair(img_path)
+                label = False
+                imgs.append((im1, im2))
+                labels.append(label)
+
+                if len(imgs) % 100 == 0:
+                    print("Processed {}/{}".format(len(imgs), len(sim_img_paths) + len(dif_img_paths)))
             except (IOError, OSError):
                 print('missed', img_path)
                 pass
 
         X = np.array(imgs, dtype='float32')
-        Y = np.eye(NUM_CLASSES, dtype='uint8')[labels]
+        Y = np.eye(2, dtype='uint8')[labels]
 
         with h5py.File('X.h5', 'w') as hf:
             hf.create_dataset('imgs', data=X)
