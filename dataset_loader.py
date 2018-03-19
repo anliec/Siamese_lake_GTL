@@ -45,8 +45,8 @@ def load_data_set():
         img2s = []
         labels = []
 
-        sim_img_paths = glob.glob(os.path.join(root_dir, '1/*/'))
-        dif_img_paths = glob.glob(os.path.join(root_dir, '3/*/'))
+        sim_img_paths = glob.glob(os.path.join(root_dir, '[12]/*/'))
+        dif_img_paths = glob.glob(os.path.join(root_dir, '0/*/'))
         np.random.shuffle(sim_img_paths)
         np.random.shuffle(dif_img_paths)
         for img_path in sim_img_paths:
