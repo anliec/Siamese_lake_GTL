@@ -8,14 +8,19 @@ from dataset_loader import load_data_set
 from siamese import get_siamese_model
 
 
-def get_siamese_vgg_model(image_shape=(224, 224, 3)):
+def get_siamese_vgg_model(image_shape=(224, 224, 3), weights='imagenet', train_from_layers: int=19,
+                          merge_type='concatenate', add_batch_norm=False):
     input_a = Input(image_shape)
     input_b = Input(image_shape)
 
-    vgg_base = VGG16(include_top=False, input_shape=image_shape, weights='imagenet')
+    vgg_base = VGG16(include_top=False, input_shape=image_shape, weights=weights)
 
-    siamese_vgg_model = get_siamese_model(vgg_base, image_shape)
-    siamese_vgg_model.trainable = False
+    for layer in vgg_base.layers[:train_from_layers]:
+        layer.trainable = False
+
+    vgg_base.summary()
+
+    siamese_vgg_model = get_siamese_model(vgg_base, image_shape, add_batch_norm, merge_type)
 
     top = Dense(128, activation="relu")(siamese_vgg_model([input_a, input_b]))
     # top = Dense(128, activation="relu")(top)
@@ -35,10 +40,10 @@ if __name__ == '__main__':
     batch_size = 1647
     train_ratio = 0.9
 
-    x_1, x_2, y = load_data_set()
-    train_size = int(train_ratio * len(y))
-    x_1_train, x_2_train, y_train = x_1[:train_size], x_2[:train_size], y[:train_size]
-    x_1_test, x_2_test, y_test = x_1[train_size:], x_2[train_size:], y[train_size:]
+    # x_1, x_2, y = load_data_set()
+    # train_size = int(train_ratio * len(y))
+    # x_1_train, x_2_train, y_train = x_1[:train_size], x_2[:train_size], y[:train_size]
+    # x_1_test, x_2_test, y_test = x_1[train_size:], x_2[train_size:], y[train_size:]
     
     model = get_siamese_vgg_model()
     model.summary()
@@ -47,7 +52,7 @@ if __name__ == '__main__':
                   optimizer='adam',
                   metrics=['categorical_accuracy'])
 
-    datagen = ImageDataGenerator(  # add shear_range ?
+    datagen = ImageDataGenerator(
         featurewise_center=True,
         featurewise_std_normalization=True,
         rotation_range=10,
