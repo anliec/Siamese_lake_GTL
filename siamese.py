@@ -18,8 +18,8 @@ import numpy as np
 import random
 from keras.datasets import mnist
 from keras.models import Model
-from keras.layers import Input, Flatten, Dense, Dropout, Lambda, Concatenate, BatchNormalization, subtract, dot,\
-    multiply
+from keras.layers import Input, Flatten, Dense, Dropout, Lambda, Concatenate, BatchNormalization, Subtract, Dot,\
+    Multiply
 from keras.optimizers import RMSprop
 from keras import backend as K
 
@@ -149,11 +149,20 @@ def get_siamese_model(src_model: Model, input_shape: tuple, add_batch_norm=False
     if add_batch_norm:
         processed_a = BatchNormalization()(processed_a)
         processed_b = BatchNormalization()(processed_b)
+
     if merge_type == 'concatenate':
         siamese = Concatenate()([processed_a, processed_b])
     elif merge_type == 'dot':
-        siamese = dot()([processed_a, processed_b])
+        siamese = Dot(axes=3)([processed_a, processed_b])
+    elif merge_type == 'subtract':
+        siamese = Subtract()([processed_a, processed_b])
+    elif merge_type == 'multiply':
+        siamese = Multiply()([processed_a, processed_b])
+    else:
+        raise ValueError("merge_type value incorrect, was " + str(merge_type) + " and not one of 'concatenate', 'dot', "
+                         "'subtract' or 'multiply'")
     siamese = Flatten()(siamese)
 
     model = Model([input_a, input_b], siamese)
+
     return model

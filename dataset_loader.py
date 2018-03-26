@@ -32,60 +32,64 @@ def load_image_pair(path: str):
     return im1, im2
 
 
-def load_data_set():
-    try:
-        with h5py.File('data/X.h5') as hf:
-            x_1, x_2, y = hf['img1s'][:], hf['img2s'][:], hf['labels'][:]
-        print("Loaded images from X.h5")
-        return x_1, x_2, y
-    except (IOError, OSError, KeyError):
-        print("Error in reading X.h5. Processing all images...")
-        root_dir = 'data/'
-        img1s = []
-        img2s = []
-        labels = []
+def load_data_set(path: str=None, save_to_disk: bool=False):
+    if path is None:
+        try:
+            with h5py.File('X.h5') as hf:
+                x_1, x_2, y = hf['img1s'][:], hf['img2s'][:], hf['labels'][:]
+            print("Loaded images from X.h5")
+            return x_1, x_2, y
+        except (IOError, OSError, KeyError):
+            root_dir = 'data/'
+            print("Error in reading X.h5. Processing all images...")
+    else:
+        root_dir = path
+    img1s = []
+    img2s = []
+    labels = []
 
-        sim_img_paths = glob.glob(os.path.join(root_dir, '[12]/*/'))
-        dif_img_paths = glob.glob(os.path.join(root_dir, '0/*/'))
-        np.random.shuffle(sim_img_paths)
-        np.random.shuffle(dif_img_paths)
-        for img_path in sim_img_paths:
-            try:
-                im1, im2 = load_image_pair(img_path)
-                label = 1
-                img1s.append(im1)
-                img2s.append(im2)
-                labels.append(label)
+    sim_img_paths = glob.glob(os.path.join(root_dir, '[1]/*/'))
+    dif_img_paths = glob.glob(os.path.join(root_dir, '0/*/'))
+    np.random.shuffle(sim_img_paths)
+    np.random.shuffle(dif_img_paths)
+    for img_path in sim_img_paths:
+        try:
+            im1, im2 = load_image_pair(img_path)
+            label = 1
+            img1s.append(im1)
+            img2s.append(im2)
+            labels.append(label)
 
-                if len(img1s) % 100 == 0:
-                    print("Processed {}/{}".format(len(img1s), len(sim_img_paths) + len(dif_img_paths)))
-            except (IOError, OSError, AttributeError):
-                print('missed', img_path)
-                pass
-        for img_path in dif_img_paths:
-            try:
-                im1, im2 = load_image_pair(img_path)
-                label = 0
-                img1s.append(im1)
-                img2s.append(im2)
-                labels.append(label)
+            if len(img1s) % 100 == 0:
+                print("Processed {}/{}".format(len(img1s), len(sim_img_paths) + len(dif_img_paths)))
+        except (IOError, OSError, AttributeError):
+            print('missed', img_path)
+            pass
+    for img_path in dif_img_paths:
+        try:
+            im1, im2 = load_image_pair(img_path)
+            label = 0
+            img1s.append(im1)
+            img2s.append(im2)
+            labels.append(label)
 
-                if len(img1s) % 100 == 0:
-                    print("Processed {}/{}".format(len(img1s), len(sim_img_paths) + len(dif_img_paths)))
-            except (IOError, OSError, AttributeError):
-                print('missed', img_path)
-                pass
-        print("Processed {}/{}".format(len(img1s), len(sim_img_paths) + len(dif_img_paths)))
+            if len(img1s) % 100 == 0:
+                print("Processed {}/{}".format(len(img1s), len(sim_img_paths) + len(dif_img_paths)))
+        except (IOError, OSError, AttributeError):
+            print('missed', img_path)
+            pass
+    print("Processed {}/{}".format(len(img1s), len(sim_img_paths) + len(dif_img_paths)))
 
-        x_1 = np.array(img1s, dtype='float32')
-        x_2 = np.array(img2s, dtype='float32')
-        y = np.array(to_categorical(labels), dtype=np.int)
+    x_1 = np.array(img1s, dtype='float32')
+    x_2 = np.array(img2s, dtype='float32')
+    y = np.array(to_categorical(labels), dtype=np.int)
 
-        x_1, x_2, y = shuffle(x_1, x_2, y)
+    x_1, x_2, y = shuffle(x_1, x_2, y)
 
-        with h5py.File('data/X.h5', 'w') as hf:
+    if save_to_disk:
+        with h5py.File('X.h5', 'w') as hf:
             hf.create_dataset('img1s', data=x_1)
             hf.create_dataset('img2s', data=x_2)
             hf.create_dataset('labels', data=y)
 
-        return x_1, x_2, y
+    return x_1, x_2, y
