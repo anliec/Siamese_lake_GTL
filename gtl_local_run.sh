@@ -4,19 +4,23 @@ source ~/.bashrc
 
 export PYTHONPATH=$HOME/Python3/bin
 
-multiple_to_take=6
+multiple_to_take=1
 host=$HOSTNAME
 num=${host:6}
 num=$((num % multiple_to_take))
 
+cmd_file="cmd_${num}.txt"
+shuf cmd.txt > ${cmd_file}
+
 i=0
 while read line; do
     i=$((i + 1))
-    if [[ $((i % multiple_to_take)) == "$num" ]]; then
-        echo "run line $i"
-        python3.6 -m VGGsiamese $line  # > "run_${host}.out"
+    out_dir=${line##*-o}
+    if [[ -d "$out_dir" ]]; then
+        echo ${out_dir} already run
     else
-        echo "skip $i as '$num' != '$((i % multiple_to_take))'"
+        echo running ${out_dir}
+        python3.6 -m VGGsiamese ${line}
     fi
-done < cmd.txt
+done < ${cmd_file}
 

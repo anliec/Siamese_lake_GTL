@@ -21,7 +21,7 @@ if __name__ == '__main__':
                                   "-m " + str(ml) + " " \
                                   "-vl " + str(vgg) + " " \
                                   "-e " + str(e) + " " \
-                                  "-o ~/runs_results/" + str(datetime.date.today()) + "_" + str(i) + "\n"
+                                  "-o runs_results/" + str(datetime.date.today()) + "_" + str(i) + "\n"
                             f.write(cmd)
                             i += 1
     print(i)

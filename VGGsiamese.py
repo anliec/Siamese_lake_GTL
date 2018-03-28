@@ -2,6 +2,7 @@ from keras.applications import VGG16
 from keras.layers import Dense, Input
 from keras.models import Model
 from keras.preprocessing.image import ImageDataGenerator
+from keras import backend as K
 import numpy as np
 import glob
 import os
@@ -14,6 +15,9 @@ import random
 
 from dataset_loader import load_data_set
 from siamese import get_siamese_model
+
+
+K.set_image_dim_ordering('tf')
 
 
 def get_siamese_vgg_model(image_shape=(224, 224, 3), weights='imagenet', train_from_layers: int=19,
@@ -34,7 +38,7 @@ def get_siamese_vgg_model(image_shape=(224, 224, 3), weights='imagenet', train_f
                                           add_batch_norm=add_batch_norm,
                                           merge_type=merge_type)
 
-    # siamese_vgg_model.summary()
+    siamese_vgg_model.summary()
 
     top = Dense(128, activation="relu")(siamese_vgg_model([input_a, input_b]))
     # top = Dense(128, activation="relu")(top)
@@ -54,7 +58,7 @@ def data_triple_generator(datagen: ImageDataGenerator, x_im1: np.ndarray, x_im2:
 
 
 def data_triple_generator_from_dir(datagen: ImageDataGenerator, dataset_dir, batch_size: int, seed=6,
-                                   save_to_dir: str=None):
+                                   save_to_dir: str=None, shuffle=True):
     left_sav_dir, right_sav_dir = None, None
     if save_to_dir is not None:
         left_sav_dir += '/left'
@@ -63,14 +67,14 @@ def data_triple_generator_from_dir(datagen: ImageDataGenerator, dataset_dir, bat
                                             class_mode='categorical',
                                             batch_size=batch_size,
                                             target_size=(224, 224),
-                                            shuffle=True,
+                                            shuffle=shuffle,
                                             seed=seed,
                                             save_to_dir=left_sav_dir)
     right_flow = datagen.flow_from_directory(directory=dataset_dir + '/right',
                                              class_mode='categorical',
                                              batch_size=batch_size,
                                              target_size=(224, 224),
-                                             shuffle=True,
+                                             shuffle=shuffle,
                                              seed=seed,
                                              save_to_dir=right_sav_dir)
     for (im1, label1), (im2, label2) in zip(left_flow, right_flow):
@@ -107,6 +111,10 @@ if __name__ == '__main__':
                         default=1,
                         type=int,
                         dest="number_of_epoch")
+    parser.add_argument('-f', '--fine-tuning-iteration',
+                        default=0,
+                        type=int,
+                        dest="fine_tuning_iteration")
     args = parser.parse_args()
     # batch_size = 1647
     # batch_size = 40
@@ -139,6 +147,18 @@ if __name__ == '__main__':
         # validation_split=1.0 - train_ratio,
         brightness_range=(0.7, 1.3)
     )
+    datagen_test = ImageDataGenerator(
+        featurewise_center=True,
+        featurewise_std_normalization=True,
+        rotation_range=0,
+        width_shift_range=0.0,
+        height_shift_range=0.0,
+        zoom_range=[1.0, 1.0],
+        fill_mode='reflect',
+        horizontal_flip=False,
+        vertical_flip=False,
+        brightness_range=[1.0, 1.0]
+    )
 
     # img_paths = glob.glob(os.path.join("data2/test/", '*/[01]/*.png'))
     # fit_images = np.array(map(cv2.imread, img_paths))
@@ -148,37 +168,45 @@ if __name__ == '__main__':
 
     # triple_generator = data_triple_generator(datagen, x_1_train, x_2_train, y_train, batch_size)
     triple_generator = data_triple_generator_from_dir(datagen, "data2/train", args.batch_size)
-    triple_generator_test = data_triple_generator_from_dir(datagen, "data2/test", args.batch_size)
-    history = model.fit_generator(generator=triple_generator,
-                                  steps_per_epoch=1201 // args.batch_size,
-                                  epochs=args.number_of_epoch,
-                                  verbose=1,
-                                  validation_data=triple_generator_test,
-                                  validation_steps=2
-                                  )
-
-    if args.output_dir is not None:
-        if not os.path.exists(args.output_dir):
-            os.makedirs(args.output_dir)
-        # write history to csv for later use
+    triple_generator_test = data_triple_generator_from_dir(datagen_test, "data2/test", args.batch_size, shuffle=False)
+    
+    df_history = pd.DataFrame()
+    for fine_tun_iteration in range(args.fine_tuning_iteration + 1):
+        history = model.fit_generator(generator=triple_generator,
+                                      steps_per_epoch=1201 // args.batch_size + 1,
+                                      epochs=args.number_of_epoch // fine_tun_iteration + 1,
+                                      verbose=1,
+                                      validation_data=triple_generator_test,
+                                      validation_steps=160 // args.batch_size + 1,
+                                      initial_epoch=args.number_of_epoch * fine_tun_iteration
+                                      )
         epoch = history.epoch
         h_values = history.history.values()
         values = np.array([epoch, ] + list(h_values))
         df = pd.DataFrame(data=values.T, columns=["epoch", ] + list(history.history.keys()))
-        df.to_csv(os.path.join(args.output_dir, 'history.csv'),
-                  sep=',')
+        if df_history.shape == (0, 0):
+            df_history = df
+        else:
+            df_history = df_history.append(df)
+
+    if args.output_dir is not None:
+        os.makedirs(args.output_dir, exist_ok=True)
+        # write history to csv for later use
+
+        df_history.to_csv(os.path.join(args.output_dir, 'history.csv'),
+                          sep=',')
         # do some fancy plots
         # Accuracy
         plt.figure()
-        plt.plot(df.get('val_categorical_accuracy'), df.get('epoch'), label='val_categorical_accuracy')
-        plt.plot(df.get('categorical_accuracy', df.get('epoch')), label='categorical_accuracy')
+        plt.plot(df_history.get('val_categorical_accuracy'), df_history.get('epoch'), label='val_categorical_accuracy')
+        plt.plot(df_history.get('categorical_accuracy', df_history.get('epoch')), label='categorical_accuracy')
         plt.ylabel('accuracy')
         plt.xlabel('epoch')
         plt.savefig(os.path.join(args.output_dir, 'accuracy.png'))
         # Loss
         plt.figure()
-        plt.plot(df.get('val_loss'), df.get('epoch'), label='val_loss')
-        plt.plot(df.get('loss'), df.get('epoch'), label='loss')
+        plt.plot(df_history.get('val_loss'), df_history.get('epoch'), label='val_loss')
+        plt.plot(df_history.get('loss'), df_history.get('epoch'), label='loss')
         plt.ylabel('loss')
         plt.xlabel('epoch')
         plt.savefig(os.path.join(args.output_dir, 'loss.png'))
