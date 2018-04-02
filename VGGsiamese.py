@@ -1,7 +1,8 @@
 from keras.applications import VGG16
-from keras.layers import Dense, Input
+from keras.layers import Dense, Input, Dropout
 from keras.models import Model
 from keras.preprocessing.image import ImageDataGenerator
+from keras.optimizers import Adam, RMSprop
 from keras import backend as K
 import numpy as np
 import glob
@@ -21,7 +22,21 @@ K.set_image_dim_ordering('tf')
 
 
 def get_siamese_vgg_model(image_shape=(224, 224, 3), weights='imagenet', train_from_layers: int=19,
-                          merge_type='concatenate', add_batch_norm=False):
+                          merge_type='concatenate', add_batch_norm=False, layer_block_to_remove=0,
+                          dropout=None):
+    """
+    create a VGG based, siamese network
+    :param image_shape: shape of input ((224, 224, 3) if the original weight are used)
+    :param weights: source of the weight to use on VGG, can by 'imagenet' or 'None' (or a path to weights)
+    :param train_from_layers: number of layers to froze starting from the first layer (default 19: all)
+    :param merge_type: how to merge the output of the siamese network, on of 'dot', 'multiply',
+        'subtract' or 'concatenate'.
+    :param add_batch_norm: True to add batch normalization before merging layers (default: False)
+    :param layer_block_to_remove: How many block of layers to remove from VGG, starting at the end
+        can be 0, 1, 2, 3 or 4, default 0.
+    :param dropout: float: dropout to add in top model, None: no dropout (default: None)
+    :return: a Keras model of a siamese VGG model with the given parameters
+    """
     input_a = Input(image_shape)
     input_b = Input(image_shape)
 
@@ -32,7 +47,14 @@ def get_siamese_vgg_model(image_shape=(224, 224, 3), weights='imagenet', train_f
     for layer in vgg_base.layers[:train_from_layers]:
         layer.trainable = False
 
-    # vgg_base.summary()
+    for i in range(layer_block_to_remove):
+        vgg_base.layers.pop()  # max poolling
+        if i < 4:
+            vgg_base.layers.pop()  # conv 3
+        vgg_base.layers.pop()  # conv 2
+        vgg_base.layers.pop()  # conv 1
+
+    vgg_base.summary()
 
     siamese_vgg_model = get_siamese_model(vgg_base, image_shape,
                                           add_batch_norm=add_batch_norm,
@@ -41,6 +63,8 @@ def get_siamese_vgg_model(image_shape=(224, 224, 3), weights='imagenet', train_f
     siamese_vgg_model.summary()
 
     top = Dense(128, activation="relu")(siamese_vgg_model([input_a, input_b]))
+    if dropout is not None:
+        top = Dropout(dropout)(top)
     # top = Dense(128, activation="relu")(top)
     top = Dense(2, activation="sigmoid")(top)
 
@@ -103,6 +127,10 @@ if __name__ == '__main__':
                         default=19,
                         type=int,
                         dest="vgg_frozen_layer")
+    parser.add_argument('-vrb', '--vgg-nb-block-to-remove',
+                        default=0,
+                        type=int,
+                        dest="vgg_nb_block_to_remove")
     parser.add_argument('-o', '--out-dir',
                         default=None,
                         type=str,
@@ -111,6 +139,24 @@ if __name__ == '__main__':
                         default=1,
                         type=int,
                         dest="number_of_epoch")
+    parser.add_argument('-d', '--dropout',
+                        default=None,
+                        type=float,
+                        dest="dropout")
+    parser.add_argument('-lr', '--learning-rate',
+                        default=0.001,
+                        type=float,
+                        dest="learning-rate")
+    parser.add_argument('-lrd', '--learning-rate-decay',
+                        default=0.0,
+                        type=float,
+                        dest="learning-rate-decay")
+    parser.add_argument('-op', '--optimizer',
+                        default='adam',
+                        type=str,
+                        dest="optimizer")
+    # code close to be ready for this parameters, but anyway the dataset is too small
+    # to do fine tuning...
     parser.add_argument('-f', '--fine-tuning-iteration',
                         default=0,
                         type=int,
@@ -124,14 +170,25 @@ if __name__ == '__main__':
     # train_size = int(train_ratio * len(y))
     # x_1_train, x_2_train, y_train = x_1[:train_size], x_2[:train_size], y[:train_size]
     # x_1_test, x_2_test, y_test = x_1[train_size:], x_2[train_size:], y[train_size:]
-    
+
     model = get_siamese_vgg_model(add_batch_norm=args.use_batch_norm,
                                   train_from_layers=args.vgg_frozen_layer,
-                                  merge_type=args.merge_layer)
+                                  merge_type=args.merge_layer,
+                                  layer_block_to_remove=args.vgg_nb_block_to_remove,
+                                  dropout=args.dropout)
     # model.summary()
 
+    if args.optmizer == 'adam':
+        opt = Adam(lr=args.learning_rate,
+                   decay=args.learning_rate_decay)
+    elif args.optmizer == 'rmsprop':
+        opt = RMSprop(lr=args.learning_rate,
+                      decay=args.learning_rate_decay)
+    else:
+        raise ValueError("Optimizer argument must be one of 'adam' or 'rmsprop', not " + str(args.optmizer))
+
     model.compile(loss='categorical_crossentropy',
-                  optimizer='adam',
+                  optimizer=opt,
                   metrics=['categorical_accuracy'])
 
     datagen = ImageDataGenerator(
