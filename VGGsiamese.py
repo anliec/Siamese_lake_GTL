@@ -1,5 +1,5 @@
-from keras.applications import VGG16
-from keras.layers import Dense, Input, Dropout
+from keras.applications import VGG16, ResNet50
+from keras.layers import Dense, Input, Dropout, BatchNormalization
 from keras.models import Model
 from keras.preprocessing.image import ImageDataGenerator
 from keras.optimizers import Adam, RMSprop
@@ -37,6 +37,9 @@ def get_siamese_vgg_model(image_shape=(224, 224, 3), weights='imagenet', train_f
     :param dropout: float: dropout to add in top model, None: no dropout (default: None)
     :return: a Keras model of a siamese VGG model with the given parameters
     """
+    if 0 > layer_block_to_remove > 4:
+        raise ValueError("layer_block_to_remove only can be 0, 1, 2, 3 or 4")
+    
     input_a = Input(image_shape)
     input_b = Input(image_shape)
 
@@ -54,7 +57,7 @@ def get_siamese_vgg_model(image_shape=(224, 224, 3), weights='imagenet', train_f
         vgg_base.layers.pop()  # conv 2
         vgg_base.layers.pop()  # conv 1
 
-    vgg_base.summary()
+    # vgg_base.summary()
 
     siamese_vgg_model = get_siamese_model(vgg_base, image_shape,
                                           add_batch_norm=add_batch_norm,
@@ -62,11 +65,13 @@ def get_siamese_vgg_model(image_shape=(224, 224, 3), weights='imagenet', train_f
 
     siamese_vgg_model.summary()
 
+    top = Dense(512, activation="relu")(siamese_vgg_model([input_a, input_b]))
+    if dropout is not None:
+        top = Dropout(dropout)(top)
     top = Dense(128, activation="relu")(siamese_vgg_model([input_a, input_b]))
     if dropout is not None:
         top = Dropout(dropout)(top)
-    # top = Dense(128, activation="relu")(top)
-    top = Dense(2, activation="sigmoid")(top)
+    top = Dense(2, activation="softmax")(top)
 
     return Model(inputs=[input_a, input_b], outputs=top)
 
@@ -146,11 +151,11 @@ if __name__ == '__main__':
     parser.add_argument('-lr', '--learning-rate',
                         default=0.001,
                         type=float,
-                        dest="learning-rate")
+                        dest="learning_rate")
     parser.add_argument('-lrd', '--learning-rate-decay',
                         default=0.0,
                         type=float,
-                        dest="learning-rate-decay")
+                        dest="learning_rate_decay")
     parser.add_argument('-op', '--optimizer',
                         default='adam',
                         type=str,
@@ -178,10 +183,10 @@ if __name__ == '__main__':
                                   dropout=args.dropout)
     # model.summary()
 
-    if args.optmizer == 'adam':
+    if args.optimizer == 'adam':
         opt = Adam(lr=args.learning_rate,
                    decay=args.learning_rate_decay)
-    elif args.optmizer == 'rmsprop':
+    elif args.optimizer == 'rmsprop':
         opt = RMSprop(lr=args.learning_rate,
                       decay=args.learning_rate_decay)
     else:
@@ -189,7 +194,7 @@ if __name__ == '__main__':
 
     model.compile(loss='categorical_crossentropy',
                   optimizer=opt,
-                  metrics=['categorical_accuracy'])
+                  metrics=['categorical_accuracy', 'accuracy'])
 
     datagen = ImageDataGenerator(
         featurewise_center=True,
