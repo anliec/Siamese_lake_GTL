@@ -4,8 +4,8 @@ import datetime
 
 if __name__ == '__main__':
     batch_size = [40]
-    merge_layer = ['concatenate', 'dot', 'subtract', 'multiply']
-    epochs = [20]
+    merge_layer = ['concatenate', 'dot', 'subtract', 'multiply', 'l1', 'l2']
+    epochs = [5]
     vgg_frozen_size = [19]
     batch_norm = [True]
     dropout = [None, 0.25]
