@@ -42,12 +42,20 @@ def get_siamese_model(src_model: Model, input_shape: tuple, add_batch_norm=False
     elif merge_type == 'subtract':
         siamese = Subtract()([processed_a, processed_b])
         siamese = Flatten()(siamese)
+    elif merge_type == 'l1':
+        siamese = Subtract()([processed_a, processed_b])
+        siamese = Lambda(lambda x: K.abs(x))(siamese)
+        siamese = Flatten()(siamese)
+    elif merge_type == 'l2':
+        siamese = Subtract()([processed_a, processed_b])
+        siamese = Lambda(lambda x: K.pow(x, 2))(siamese)
+        siamese = Flatten()(siamese)
     elif merge_type == 'multiply':
         siamese = Multiply()([processed_a, processed_b])
         siamese = Flatten()(siamese)
     else:
         raise ValueError("merge_type value incorrect, was " + str(merge_type) + " and not one of 'concatenate', 'dot', "
-                         "'subtract' or 'multiply'")
+                         "'subtract', 'l1', 'l2' or 'multiply'")
 
     if add_batch_norm:
         siamese = BatchNormalization()(siamese)

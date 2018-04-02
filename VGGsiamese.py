@@ -30,7 +30,7 @@ def get_siamese_vgg_model(image_shape=(224, 224, 3), weights='imagenet', train_f
     :param weights: source of the weight to use on VGG, can by 'imagenet' or 'None' (or a path to weights)
     :param train_from_layers: number of layers to froze starting from the first layer (default 19: all)
     :param merge_type: how to merge the output of the siamese network, on of 'dot', 'multiply',
-        'subtract' or 'concatenate'.
+        'subtract', 'l1', 'l2' or 'concatenate'.
     :param add_batch_norm: True to add batch normalization before merging layers (default: False)
     :param layer_block_to_remove: How many block of layers to remove from VGG, starting at the end
         can be 0, 1, 2, 3 or 4, default 0.
@@ -39,7 +39,7 @@ def get_siamese_vgg_model(image_shape=(224, 224, 3), weights='imagenet', train_f
     """
     if 0 > layer_block_to_remove > 4:
         raise ValueError("layer_block_to_remove only can be 0, 1, 2, 3 or 4")
-    
+
     input_a = Input(image_shape)
     input_b = Input(image_shape)
 
