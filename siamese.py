@@ -38,17 +38,17 @@ def get_siamese_model(src_model: Model, input_shape: tuple, add_batch_norm=False
         siamese = Flatten()(siamese)
     elif merge_type == 'dot':
         siamese = Multiply()([processed_a, processed_b])
-        siamese = Lambda(lambda x: K.sum(x, axis=(1, 2)))(siamese)
+        siamese = Lambda(lambda x: K.sum(x, axis=(1, 2)), name='sum')(siamese)
     elif merge_type == 'subtract':
         siamese = Subtract()([processed_a, processed_b])
         siamese = Flatten()(siamese)
     elif merge_type == 'l1':
         siamese = Subtract()([processed_a, processed_b])
-        siamese = Lambda(lambda x: K.abs(x))(siamese)
+        siamese = Lambda(lambda x: K.abs(x), name='abs')(siamese)
         siamese = Flatten()(siamese)
     elif merge_type == 'l2':
         siamese = Subtract()([processed_a, processed_b])
-        siamese = Lambda(lambda x: K.pow(x, 2))(siamese)
+        siamese = Lambda(lambda x: K.pow(x, 2), name='square')(siamese)
         siamese = Flatten()(siamese)
     elif merge_type == 'multiply':
         siamese = Multiply()([processed_a, processed_b])

@@ -1,3 +1,6 @@
+import matplotlib
+matplotlib.use('Agg')
+
 from keras.applications import VGG16, ResNet50
 from keras.layers import Dense, Input, Dropout, BatchNormalization
 from keras.models import Model
@@ -52,12 +55,13 @@ def get_siamese_vgg_model(image_shape=(224, 224, 3), weights='imagenet', train_f
 
     for i in range(layer_block_to_remove):
         vgg_base.layers.pop()  # max poolling
-        if i < 4:
+        if i < 3:
             vgg_base.layers.pop()  # conv 3
         vgg_base.layers.pop()  # conv 2
         vgg_base.layers.pop()  # conv 1
 
-    # vgg_base.summary()
+    vgg_base = Model(vgg_base.input, vgg_base.layers[-1].output)
+    vgg_base.summary()
 
     siamese_vgg_model = get_siamese_model(vgg_base, image_shape,
                                           add_batch_norm=add_batch_norm,
@@ -162,10 +166,10 @@ if __name__ == '__main__':
                         dest="optimizer")
     # code close to be ready for this parameters, but anyway the dataset is too small
     # to do fine tuning...
-    parser.add_argument('-f', '--fine-tuning-iteration',
-                        default=0,
-                        type=int,
-                        dest="fine_tuning_iteration")
+    # parser.add_argument('-f', '--fine-tuning-iteration',
+    #                     default=1,
+    #                     type=int,
+    #                     dest="fine_tuning_iteration")
     args = parser.parse_args()
     # batch_size = 1647
     # batch_size = 40
@@ -194,7 +198,7 @@ if __name__ == '__main__':
 
     model.compile(loss='categorical_crossentropy',
                   optimizer=opt,
-                  metrics=['categorical_accuracy', 'accuracy'])
+                  metrics=['categorical_accuracy'])
 
     datagen = ImageDataGenerator(
         featurewise_center=True,
@@ -222,9 +226,10 @@ if __name__ == '__main__':
         brightness_range=[1.0, 1.0]
     )
 
-    # img_paths = glob.glob(os.path.join("data2/test/", '*/[01]/*.png'))
+    # img_paths = glob.glob(os.path.join("data2/test/", '*/*/*.png'))
     # fit_images = np.array(map(cv2.imread, img_paths))
-    datagen.fit(np.array(list(map(cv2.imread, glob.glob(os.path.join("data2/test/", '*/[01]/*.png'))))))
+    datagen.fit(np.array(list(map(cv2.imread, glob.glob(os.path.join("data2/test/", '*/*/*.png'))))))
+    datagen_test.fit(np.array(list(map(cv2.imread, glob.glob(os.path.join("data2/test/", '*/*/*.png'))))))
 
     print("fit done")
 
@@ -233,23 +238,28 @@ if __name__ == '__main__':
     triple_generator_test = data_triple_generator_from_dir(datagen_test, "data2/test", args.batch_size, shuffle=False)
     
     df_history = pd.DataFrame()
-    for fine_tun_iteration in range(args.fine_tuning_iteration + 1):
-        history = model.fit_generator(generator=triple_generator,
-                                      steps_per_epoch=1201 // args.batch_size + 1,
-                                      epochs=args.number_of_epoch // fine_tun_iteration + 1,
-                                      verbose=1,
-                                      validation_data=triple_generator_test,
-                                      validation_steps=160 // args.batch_size + 1,
-                                      initial_epoch=args.number_of_epoch * fine_tun_iteration
-                                      )
-        epoch = history.epoch
-        h_values = history.history.values()
-        values = np.array([epoch, ] + list(h_values))
-        df = pd.DataFrame(data=values.T, columns=["epoch", ] + list(history.history.keys()))
-        if df_history.shape == (0, 0):
-            df_history = df
-        else:
-            df_history = df_history.append(df)
+    history = model.fit_generator(generator=triple_generator,
+                                  steps_per_epoch=1201 // args.batch_size + 1,
+                                  epochs=args.number_of_epoch,
+                                  verbose=1,
+                                  validation_data=triple_generator_test,
+                                  validation_steps=160 // args.batch_size + 1,
+                                  initial_epoch=0
+                                  )
+    epoch = history.epoch
+    h_values = history.history.values()
+    values = np.array([epoch, ] + list(h_values))
+    df = pd.DataFrame(data=values.T, columns=["epoch", ] + list(history.history.keys()))
+    if df_history.shape == (0, 0):
+        df_history = df
+    else:
+        df_history = df_history.append(df)
+
+    print(args.__dict__)
+    for k, v in args.__dict__.items():
+        print(k, v, df_history.shape[0])
+        kwargs = {k: [v] * df_history.shape[0]}
+        df_history = df_history.assign(**kwargs)
 
     if args.output_dir is not None:
         os.makedirs(args.output_dir, exist_ok=True)
@@ -260,19 +270,21 @@ if __name__ == '__main__':
         # do some fancy plots
         # Accuracy
         plt.figure()
-        plt.plot(df_history.get('val_categorical_accuracy'), df_history.get('epoch'), label='val_categorical_accuracy')
-        plt.plot(df_history.get('categorical_accuracy', df_history.get('epoch')), label='categorical_accuracy')
+        plt.plot(df_history.get('epoch'), df_history.get('val_categorical_accuracy'), label='val_categorical_accuracy')
+        plt.plot(df_history.get('epoch'), df_history.get('categorical_accuracy'), label='categorical_accuracy')
         plt.ylabel('accuracy')
         plt.xlabel('epoch')
+        plt.legend()
         plt.savefig(os.path.join(args.output_dir, 'accuracy.png'))
         # Loss
         plt.figure()
-        plt.plot(df_history.get('val_loss'), df_history.get('epoch'), label='val_loss')
-        plt.plot(df_history.get('loss'), df_history.get('epoch'), label='loss')
+        plt.plot(df_history.get('epoch'), df_history.get('val_loss'), label='val_loss')
+        plt.plot(df_history.get('epoch'), df_history.get('loss'), label='loss')
         plt.ylabel('loss')
         plt.xlabel('epoch')
+        plt.legend()
         plt.savefig(os.path.join(args.output_dir, 'loss.png'))
 
         with open(os.path.join(args.output_dir, 'args.txt'), mode='w') as f:
-            f.write(str(sys.argv))
+            f.write(' '.join(str(sys.argv)))
 

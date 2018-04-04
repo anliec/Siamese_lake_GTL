@@ -8,7 +8,7 @@ if __name__ == '__main__':
     epochs = [5]
     vgg_frozen_size = [19]
     batch_norm = [True]
-    dropout = [None, 0.25]
+    dropout = [0.0, 0.25]
     learning_rate = [0.001]
     decay = [0.0, 0.1]
     optimizer = ['adam', 'rmsprop']
