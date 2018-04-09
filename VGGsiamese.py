@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 import random
 
 from dataset_loader import load_data_set
-from siamese import get_siamese_model
+from siamese import get_siamese_layers
 
 
 K.set_image_dim_ordering('tf')
@@ -63,16 +63,14 @@ def get_siamese_vgg_model(image_shape=(224, 224, 3), weights='imagenet', train_f
     vgg_base = Model(vgg_base.input, vgg_base.layers[-1].output)
     vgg_base.summary()
 
-    siamese_vgg_model = get_siamese_model(vgg_base, image_shape,
-                                          add_batch_norm=add_batch_norm,
-                                          merge_type=merge_type)
+    siamese_vgg = get_siamese_layers(vgg_base, input_a, input_b,
+                                     add_batch_norm=add_batch_norm,
+                                     merge_type=merge_type)
 
-    siamese_vgg_model.summary()
-
-    top = Dense(512, activation="relu")(siamese_vgg_model([input_a, input_b]))
+    top = Dense(512, activation="relu")(siamese_vgg)
     if dropout is not None:
         top = Dropout(dropout)(top)
-    top = Dense(128, activation="relu")(siamese_vgg_model([input_a, input_b]))
+    top = Dense(128, activation="relu")(top)
     if dropout is not None:
         top = Dropout(dropout)(top)
     top = Dense(2, activation="softmax")(top)
@@ -87,7 +85,6 @@ def data_triple_generator(datagen: ImageDataGenerator, x_im1: np.ndarray, x_im2:
             yield [im1, im2], label
         else:
             yield [im2, im1], label
-        # add vertical flip on both images ? randomly switch images ?
 
 
 def data_triple_generator_from_dir(datagen: ImageDataGenerator, dataset_dir, batch_size: int, seed=6,
@@ -185,7 +182,7 @@ if __name__ == '__main__':
                                   merge_type=args.merge_layer,
                                   layer_block_to_remove=args.vgg_nb_block_to_remove,
                                   dropout=args.dropout)
-    # model.summary()
+    model.summary()
 
     if args.optimizer == 'adam':
         opt = Adam(lr=args.learning_rate,

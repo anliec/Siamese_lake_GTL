@@ -27,38 +27,47 @@ from keras import backend as K
 def get_siamese_model(src_model: Model, input_shape: tuple, add_batch_norm=False, merge_type='concatenate'):
     input_a = Input(shape=input_shape)
     input_b = Input(shape=input_shape)
+
+    siamese = get_siamese_layers(src_model, input_a, input_b, add_batch_norm, merge_type)
+
+    model = Model([input_a, input_b], siamese)
+    return model
+
+
+def get_siamese_layers(src_model: Model, input_a, input_b, add_batch_norm=False, merge_type='concatenate'):
     processed_a = src_model(input_a)
     processed_b = src_model(input_b)
     if add_batch_norm:
-        processed_a = BatchNormalization()(processed_a)
-        processed_b = BatchNormalization()(processed_b)
+        processed_a = BatchNormalization(name='processed_a_normalization')(processed_a)
+        processed_b = BatchNormalization(name='processed_b_normalization')(processed_b)
 
     if merge_type == 'concatenate':
-        siamese = Concatenate()([processed_a, processed_b])
-        siamese = Flatten()(siamese)
+        siamese = Concatenate(name='concatenate_merge')([processed_a, processed_b])
+        siamese = Flatten(name='concatenate_merge_flatten')(siamese)
     elif merge_type == 'dot':
-        siamese = Multiply()([processed_a, processed_b])
-        siamese = Lambda(lambda x: K.sum(x, axis=(1, 2)), name='sum')(siamese)
+        siamese = Multiply(name='dot_merge_multiply')([processed_a, processed_b])
+        siamese = Lambda(lambda x: K.sum(x, axis=(1, 2)), name='dot_merge_sum')(siamese)
     elif merge_type == 'subtract':
-        siamese = Subtract()([processed_a, processed_b])
-        siamese = Flatten()(siamese)
+        siamese = Subtract(name='subtract_merge')([processed_a, processed_b])
+        siamese = Flatten(name='subtract_merge_flatten')(siamese)
     elif merge_type == 'l1':
-        siamese = Subtract()([processed_a, processed_b])
-        siamese = Lambda(lambda x: K.abs(x), name='abs')(siamese)
-        siamese = Flatten()(siamese)
+        siamese = Subtract(name='l1_merge_subtract')([processed_a, processed_b])
+        siamese = Lambda(lambda x: K.abs(x), name='l1_merge_abs')(siamese)
+        siamese = Flatten(name='l1_merge_flatten')(siamese)
     elif merge_type == 'l2':
-        siamese = Subtract()([processed_a, processed_b])
-        siamese = Lambda(lambda x: K.pow(x, 2), name='square')(siamese)
-        siamese = Flatten()(siamese)
+        siamese = Subtract(name='l2_merge_subtract')([processed_a, processed_b])
+        siamese = Lambda(lambda x: K.pow(x, 2), name='l2_merge_square')(siamese)
+        siamese = Flatten(name='l2_merge_flatten')(siamese)
     elif merge_type == 'multiply':
-        siamese = Multiply()([processed_a, processed_b])
-        siamese = Flatten()(siamese)
+        siamese = Multiply(name='multiply_merge')([processed_a, processed_b])
+        siamese = Flatten(name='multiply_merge_flatten')(siamese)
     else:
         raise ValueError("merge_type value incorrect, was " + str(merge_type) + " and not one of 'concatenate', 'dot', "
                          "'subtract', 'l1', 'l2' or 'multiply'")
 
     if add_batch_norm:
-        siamese = BatchNormalization()(siamese)
+        siamese = BatchNormalization(name='merge_normalisation')(siamese)
 
-    model = Model([input_a, input_b], siamese)
-    return model
+    return siamese
+
+
