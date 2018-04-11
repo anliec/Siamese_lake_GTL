@@ -24,7 +24,7 @@ while read line; do
         echo -e "${RED}${out_dir} already run${NC}"
     else
         echo -e "${BLUE}running ${out_dir}, with line: ${line}${NC}"
-        python3.6 -m VGGsiamese ${line}
+        nice python3.6 -m VGGsiamese ${line}
         if [[ "$?" != "0" ]]; then
             echo -e "${RED}Error on python script execution, please read logs${NC}"
             exit

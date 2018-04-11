@@ -20,6 +20,9 @@ import random
 from dataset_loader import load_data_set
 from siamese import get_siamese_layers
 
+TRAIN_DATASET_SIZE = 10706
+TEST_DATASET_SIZE = 1299
+
 
 K.set_image_dim_ordering('tf')
 
@@ -67,15 +70,24 @@ def get_siamese_vgg_model(image_shape=(224, 224, 3), weights='imagenet', train_f
                                      add_batch_norm=add_batch_norm,
                                      merge_type=merge_type)
 
-    top = Dense(512, activation="relu")(siamese_vgg)
-    if dropout is not None:
-        top = Dropout(dropout)(top)
-    top = Dense(128, activation="relu")(top)
+    # top = Dense(512, activation="relu")(siamese_vgg)
+    # if dropout is not None:
+    #     top = Dropout(dropout)(top)
+    top = Dense(128, activation="relu")(siamese_vgg)
     if dropout is not None:
         top = Dropout(dropout)(top)
     top = Dense(2, activation="softmax")(top)
 
     return Model(inputs=[input_a, input_b], outputs=top)
+
+
+def unfroze_core_model_layers(siamese_model: Model, number_of_layers_to_unfroze: int, model_optimizer):
+    model_layer = siamese_model.layers[2]  # layers 0 and 1 are input, model is the third
+    unfroze_limit = number_of_layers_to_unfroze + number_of_layers_to_unfroze // 4 + 1
+    for layer in model_layer.layers[:-unfroze_limit]:
+        layer.trainable = False
+    for layer in model_layer.layers[-unfroze_limit:]:
+        layer.trainable = True
 
 
 def data_triple_generator(datagen: ImageDataGenerator, x_im1: np.ndarray, x_im2: np.ndarray, y: np.ndarray, batch_size: int):
@@ -141,7 +153,7 @@ if __name__ == '__main__':
                         default=None,
                         type=str,
                         dest="output_dir")
-    parser.add_argument('-e', '--epochs',
+    parser.add_argument('-e', '--epochs-per-step',
                         default=1,
                         type=int,
                         dest="number_of_epoch")
@@ -161,12 +173,10 @@ if __name__ == '__main__':
                         default='adam',
                         type=str,
                         dest="optimizer")
-    # code close to be ready for this parameters, but anyway the dataset is too small
-    # to do fine tuning...
-    # parser.add_argument('-f', '--fine-tuning-iteration',
-    #                     default=1,
-    #                     type=int,
-    #                     dest="fine_tuning_iteration")
+    parser.add_argument('-f', '--fine-tuning-iteration',
+                        default=0,
+                        type=int,
+                        dest="fine_tuning_iteration")
     args = parser.parse_args()
     # batch_size = 1647
     # batch_size = 40
@@ -184,17 +194,8 @@ if __name__ == '__main__':
                                   dropout=args.dropout)
     model.summary()
 
-    if args.optimizer == 'adam':
-        opt = Adam(lr=args.learning_rate,
-                   decay=args.learning_rate_decay)
-    elif args.optimizer == 'rmsprop':
-        opt = RMSprop(lr=args.learning_rate,
-                      decay=args.learning_rate_decay)
-    else:
-        raise ValueError("Optimizer argument must be one of 'adam' or 'rmsprop', not " + str(args.optmizer))
-
     model.compile(loss='categorical_crossentropy',
-                  optimizer=opt,
+                  optimizer=args.optimizer,
                   metrics=['categorical_accuracy'])
 
     datagen = ImageDataGenerator(
@@ -233,24 +234,57 @@ if __name__ == '__main__':
     # triple_generator = data_triple_generator(datagen, x_1_train, x_2_train, y_train, batch_size)
     triple_generator = data_triple_generator_from_dir(datagen, "data2/train", args.batch_size)
     triple_generator_test = data_triple_generator_from_dir(datagen_test, "data2/test", args.batch_size, shuffle=False)
-    
-    df_history = pd.DataFrame()
+
+    # train the top layer of the classifier
     history = model.fit_generator(generator=triple_generator,
-                                  steps_per_epoch=1201 // args.batch_size + 1,
+                                  steps_per_epoch=TRAIN_DATASET_SIZE // args.batch_size + 1,
                                   epochs=args.number_of_epoch,
                                   verbose=1,
                                   validation_data=triple_generator_test,
-                                  validation_steps=160 // args.batch_size + 1,
+                                  validation_steps=TEST_DATASET_SIZE // args.batch_size + 1,
                                   initial_epoch=0
                                   )
+    # save the result for analysis
     epoch = history.epoch
     h_values = history.history.values()
-    values = np.array([epoch, ] + list(h_values))
-    df = pd.DataFrame(data=values.T, columns=["epoch", ] + list(history.history.keys()))
-    if df_history.shape == (0, 0):
-        df_history = df
+    values = np.array([epoch, ] + list(h_values) + [[0] * len(epoch)])
+    df_history = pd.DataFrame(data=values.T,
+                              columns=["epoch", ] + list(history.history.keys()) + ['fine_tuning']
+                              )
+
+    if args.optimizer == 'adam':
+        opt = Adam(lr=args.learning_rate,
+                   decay=args.learning_rate_decay)
+    elif args.optimizer == 'rmsprop':
+        opt = RMSprop(lr=args.learning_rate,
+                      decay=args.learning_rate_decay)
     else:
-        df_history = df_history.append(df)
+        raise ValueError("Optimizer argument must be one of 'adam' or 'rmsprop', not " + str(args.optmizer))
+
+    # now do some fine tuning if asked from command line
+    for i in range(1, args.fine_tuning_iteration + 1):
+        unfroze_core_model_layers(model, i, opt)
+
+        model.compile(loss='categorical_crossentropy',
+                      optimizer=opt,
+                      metrics=['categorical_accuracy'])
+
+        history = model.fit_generator(generator=triple_generator,
+                                      steps_per_epoch=TRAIN_DATASET_SIZE // args.batch_size + 1,
+                                      epochs=args.number_of_epoch,
+                                      verbose=1,
+                                      validation_data=triple_generator_test,
+                                      validation_steps=TEST_DATASET_SIZE // args.batch_size + 1,
+                                      initial_epoch=0
+                                      )
+        # save the result for analysis
+        epoch = history.epoch
+        h_values = history.history.values()
+        values = np.array([epoch, ] + list(h_values) + [[i] * len(epoch)])
+        df_history = df_history.append(pd.DataFrame(data=values.T,
+                                                    columns=["epoch", ] + list(history.history.keys()) + ['fine_tuning']
+                                                    )
+                                       )
 
     print(args.__dict__)
     for k, v in args.__dict__.items():
@@ -260,7 +294,7 @@ if __name__ == '__main__':
 
     if args.output_dir is not None:
         os.makedirs(args.output_dir, exist_ok=True)
-        # write history to csv for later use
+        # write history to csv for late160r use
 
         df_history.to_csv(os.path.join(args.output_dir, 'history.csv'),
                           sep=',')

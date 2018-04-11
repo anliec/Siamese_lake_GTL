@@ -4,15 +4,15 @@ import datetime
 
 if __name__ == '__main__':
     batch_size = [40]
-    merge_layer = ['concatenate', 'dot', 'subtract', 'multiply', 'l1', 'l2']
+    merge_layer = ['dot', 'multiply']
     epochs = [5]
     vgg_frozen_size = [19]
-    batch_norm = [True]
-    dropout = [0.0, 0.25]
+    batch_norm = [True, False]
+    dropout = [0.1, 0.25]
     learning_rate = [0.001]
-    decay = [0.0, 0.1]
-    optimizer = ['adam', 'rmsprop']
-    block_to_remove = [0, 2, 4]
+    decay = [0.0]
+    optimizer = ['adam']
+    block_to_remove = [0, 1, 2, 3]
 
     i = 0
     with open("cmd.txt", 'w') as f:
