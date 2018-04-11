@@ -127,6 +127,33 @@ def data_triple_generator_from_dir(datagen: ImageDataGenerator, dataset_dir, bat
             yield [im2, im1], label1
 
 
+def save_results(path, history):
+    if path is not None:
+        os.makedirs(path, exist_ok=True)
+        # write history to csv for late160r use
+
+        history.to_csv(os.path.join(path, 'history.csv'), sep=',')
+        # do some fancy plots
+        # Accuracy
+        plt.figure()
+        plt.plot(history.get('epoch'), history.get('val_categorical_accuracy'), label='val_categorical_accuracy')
+        plt.plot(history.get('epoch'), history.get('categorical_accuracy'), label='categorical_accuracy')
+        plt.ylabel('accuracy')
+        plt.xlabel('epoch')
+        plt.legend()
+        plt.savefig(os.path.join(args.output_dir, 'accuracy.png'))
+        # Loss
+        plt.figure()
+        plt.plot(history.get('epoch'), history.get('val_loss'), label='val_loss')
+        plt.plot(history.get('epoch'), history.get('loss'), label='loss')
+        plt.ylabel('loss')
+        plt.xlabel('epoch')
+        plt.legend()
+        plt.savefig(os.path.join(path, 'loss.png'))
+
+        
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-b', '--batch-size',
@@ -172,20 +199,17 @@ if __name__ == '__main__':
     parser.add_argument('-op', '--optimizer',
                         default='adam',
                         type=str,
-                        dest="optimizer")
+                           dest="optimizer")
     parser.add_argument('-f', '--fine-tuning-iteration',
                         default=0,
                         type=int,
                         dest="fine_tuning_iteration")
     args = parser.parse_args()
-    # batch_size = 1647
-    # batch_size = 40
-    # train_ratio = 0.9
-
-    # x_1, x_2, y = load_data_set()
-    # train_size = int(train_ratio * len(y))
-    # x_1_train, x_2_train, y_train = x_1[:train_size], x_2[:train_size], y[:train_size]
-    # x_1_test, x_2_test, y_test = x_1[train_size:], x_2[train_size:], y[train_size:]
+    if args.output_dir is not None:
+        model_save_path = args.output_dir + "_models"
+        os.makedirs(model_save_path, exist_ok=True)
+    else:
+        model_save_path = None
 
     model = get_siamese_vgg_model(add_batch_norm=args.use_batch_norm,
                                   train_from_layers=args.vgg_frozen_layer,
@@ -252,6 +276,9 @@ if __name__ == '__main__':
                               columns=["epoch", ] + list(history.history.keys()) + ['fine_tuning']
                               )
 
+    if model_save_path is not None:
+        model.save(os.path.join(model_save_path, "model0.h5"), overwrite=True)
+
     if args.optimizer == 'adam':
         opt = Adam(lr=args.learning_rate,
                    decay=args.learning_rate_decay)
@@ -286,36 +313,18 @@ if __name__ == '__main__':
                                                     )
                                        )
 
-    print(args.__dict__)
+        if model_save_path is not None:
+            model.save(os.path.join(model_save_path, "model" + str(i) + ".h5"), overwrite=True)
+
     for k, v in args.__dict__.items():
-        print(k, v, df_history.shape[0])
         kwargs = {k: [v] * df_history.shape[0]}
         df_history = df_history.assign(**kwargs)
 
+    save_results(args.output_dir, df_history)
+
     if args.output_dir is not None:
-        os.makedirs(args.output_dir, exist_ok=True)
-        # write history to csv for late160r use
-
-        df_history.to_csv(os.path.join(args.output_dir, 'history.csv'),
-                          sep=',')
-        # do some fancy plots
-        # Accuracy
-        plt.figure()
-        plt.plot(df_history.get('epoch'), df_history.get('val_categorical_accuracy'), label='val_categorical_accuracy')
-        plt.plot(df_history.get('epoch'), df_history.get('categorical_accuracy'), label='categorical_accuracy')
-        plt.ylabel('accuracy')
-        plt.xlabel('epoch')
-        plt.legend()
-        plt.savefig(os.path.join(args.output_dir, 'accuracy.png'))
-        # Loss
-        plt.figure()
-        plt.plot(df_history.get('epoch'), df_history.get('val_loss'), label='val_loss')
-        plt.plot(df_history.get('epoch'), df_history.get('loss'), label='loss')
-        plt.ylabel('loss')
-        plt.xlabel('epoch')
-        plt.legend()
-        plt.savefig(os.path.join(args.output_dir, 'loss.png'))
-
         with open(os.path.join(args.output_dir, 'args.txt'), mode='w') as f:
             f.write(' '.join(str(sys.argv)))
+
+    
 

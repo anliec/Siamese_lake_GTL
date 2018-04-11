@@ -7,12 +7,13 @@ if __name__ == '__main__':
     merge_layer = ['dot', 'multiply']
     epochs = [5]
     vgg_frozen_size = [19]
-    batch_norm = [True, False]
-    dropout = [0.1, 0.25]
-    learning_rate = [0.001]
+    batch_norm = [True]
+    dropout = [0.25]
+    learning_rate = [0.0001, 0.001]
     decay = [0.0]
     optimizer = ['adam']
-    block_to_remove = [0, 1, 2, 3]
+    block_to_remove = [1, 2]
+    fine_tuning_iter = 3
 
     i = 0
     with open("cmd.txt", 'w') as f:
@@ -36,6 +37,7 @@ if __name__ == '__main__':
                                                       "-lrd " + str(lrd) + " " \
                                                       "-op " + str(opt) + " " \
                                                       "-vrb " + str(btm) + " " \
+                                                      "-f " + str(fine_tuning_iter) + " " \
                                                       "-o runs_results/" + str(datetime.date.today()) + \
                                                                            "_" + str(i) + "\n"
                                                 f.write(cmd)
