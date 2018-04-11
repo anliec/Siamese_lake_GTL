@@ -2,3 +2,6 @@
 __pycache__/
 data
 X.h5
+runs_results/
+*.out
+*.txt
