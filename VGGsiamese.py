@@ -298,11 +298,11 @@ if __name__ == '__main__':
 
         history = model.fit_generator(generator=triple_generator,
                                       steps_per_epoch=TRAIN_DATASET_SIZE // args.batch_size + 1,
-                                      epochs=args.number_of_epoch,
+                                      epochs=(i + 1) * args.number_of_epoch,
                                       verbose=1,
                                       validation_data=triple_generator_test,
                                       validation_steps=TEST_DATASET_SIZE // args.batch_size + 1,
-                                      initial_epoch=0
+                                      initial_epoch=i * args.number_of_epoch
                                       )
         # save the result for analysis
         epoch = history.epoch
