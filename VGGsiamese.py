@@ -156,8 +156,6 @@ def save_results(path, history):
         plt.legend()
         plt.savefig(os.path.join(path, 'loss.png'))
 
-        
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -190,7 +188,7 @@ if __name__ == '__main__':
                         type=int,
                         dest="number_of_epoch")
     parser.add_argument('-d', '--dropout',
-                        default=None,
+                        default=0.0,
                         type=float,
                         dest="dropout")
     parser.add_argument('-lr', '--learning-rate',
@@ -255,8 +253,8 @@ if __name__ == '__main__':
 
     # img_paths = glob.glob(os.path.join("data2/test/", '*/*/*.png'))
     # fit_images = np.array(map(cv2.imread, img_paths))
-    datagen.fit(np.array(list(map(cv2.imread, glob.glob(os.path.join("data2/train/", '*/*/*.png'))))))
-    datagen_test.fit(np.array(list(map(cv2.imread, glob.glob(os.path.join("data2/train/", '*/*/*.png'))))))
+    datagen.fit(np.array(list(map(cv2.imread, glob.glob(os.path.join("data/train/", '*/*/*.png'))))))
+    datagen_test.fit(np.array(list(map(cv2.imread, glob.glob(os.path.join("data/train/", '*/*/*.png'))))))
 
     print("fit done")
 

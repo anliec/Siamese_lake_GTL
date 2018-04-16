@@ -62,7 +62,7 @@ class DatasetTester:
                                                           include_label=False)
 
         prediction = model.predict_generator(generator=triple_generator,
-                                             steps=1)  #number_of_file // batch_size + 1)
+                                             steps=number_of_file // batch_size + 1)
 
         result_list = []
 

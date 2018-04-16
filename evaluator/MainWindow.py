@@ -7,6 +7,7 @@ from threading import Thread
 from evaluator.evaluate import DatasetTester
 from evaluator.LakeGraphicsView import LakeGraphicsView
 from evaluator.ui_mainwindow import Ui_MainWindow
+from evaluator.PairWindow import PairWindow
 
 
 class MainWindow(QMainWindow):
@@ -28,9 +29,12 @@ class MainWindow(QMainWindow):
         # worker thread
         self.worker = WorkerThread()
         self.worker.finished.connect(self.on_worker_job_finished)
+        # pair window
+        self.pair_window = PairWindow()
         # connection
         self.ui.actionOpen_siamese_model.triggered.connect(self.open_model_chooser)
         self.ui.actionQuit.triggered.connect(self.close)
+        self.graphicView.pair_selected[str, str].connect(self.pair_window.set_image_pair)
 
     def open_model_chooser(self):
         self.file_chooser.setModal(True)
@@ -49,7 +53,7 @@ class MainWindow(QMainWindow):
         self.graphicView.update_scene()
         self.graphicView.setEnabled(True)
         self.ui.actionOpen_siamese_model.setEnabled(True)
-        self.ui.statusbar.showMessage("Scene ready", 10000)
+        self.ui.statusbar.showMessage("Scene ready", 5000)
 
 
 class WorkerThread(QThread):
