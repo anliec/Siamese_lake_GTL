@@ -38,6 +38,16 @@ class Ui_Form(object):
         self.cb_examples.addItem("")
         self.cb_examples.addItem("")
         self.formLayout.setWidget(1, QtWidgets.QFormLayout.FieldRole, self.cb_examples)
+        self.label_3 = QtWidgets.QLabel(self.groupBox)
+        self.label_3.setObjectName("label_3")
+        self.formLayout.setWidget(2, QtWidgets.QFormLayout.LabelRole, self.label_3)
+        self.sb_diameter = QtWidgets.QDoubleSpinBox(self.groupBox)
+        self.sb_diameter.setMinimum(0.1)
+        self.sb_diameter.setMaximum(20.0)
+        self.sb_diameter.setSingleStep(0.1)
+        self.sb_diameter.setProperty("value", 5.0)
+        self.sb_diameter.setObjectName("sb_diameter")
+        self.formLayout.setWidget(2, QtWidgets.QFormLayout.FieldRole, self.sb_diameter)
         self.verticalLayout_2.addLayout(self.formLayout)
         self.verticalLayout.addWidget(self.groupBox)
 
@@ -56,4 +66,5 @@ class Ui_Form(object):
         self.cb_examples.setItemText(0, _translate("Form", "Positive and Negative"))
         self.cb_examples.setItemText(1, _translate("Form", "Positive"))
         self.cb_examples.setItemText(2, _translate("Form", "Negative"))
+        self.label_3.setText(_translate("Form", "Point diameter"))
 
