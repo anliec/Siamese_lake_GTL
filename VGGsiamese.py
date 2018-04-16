@@ -100,7 +100,7 @@ def data_triple_generator(datagen: ImageDataGenerator, x_im1: np.ndarray, x_im2:
 
 
 def data_triple_generator_from_dir(datagen: ImageDataGenerator, dataset_dir, batch_size: int, seed=6,
-                                   save_to_dir: str=None, shuffle=True):
+                                   save_to_dir: str=None, shuffle=True, include_label=True):
     left_sav_dir, right_sav_dir = None, None
     if save_to_dir is not None:
         left_sav_dir += '/left'
@@ -120,11 +120,16 @@ def data_triple_generator_from_dir(datagen: ImageDataGenerator, dataset_dir, bat
                                              seed=seed,
                                              save_to_dir=right_sav_dir)
     for (im1, label1), (im2, label2) in zip(left_flow, right_flow):
-        # assert (label1 == label2).all()
         if random.random() <= 0.5:
-            yield [im1, im2], label1
+            if include_label:
+                yield [im1, im2], label1
+            else:
+                yield [im1, im2]
         else:
-            yield [im2, im1], label1
+            if include_label:
+                yield [im2, im1], label1
+            else:
+                yield [im2, im1]
 
 
 def save_results(path, history):
@@ -250,8 +255,8 @@ if __name__ == '__main__':
 
     # img_paths = glob.glob(os.path.join("data2/test/", '*/*/*.png'))
     # fit_images = np.array(map(cv2.imread, img_paths))
-    datagen.fit(np.array(list(map(cv2.imread, glob.glob(os.path.join("data2/test/", '*/*/*.png'))))))
-    datagen_test.fit(np.array(list(map(cv2.imread, glob.glob(os.path.join("data2/test/", '*/*/*.png'))))))
+    datagen.fit(np.array(list(map(cv2.imread, glob.glob(os.path.join("data2/train/", '*/*/*.png'))))))
+    datagen_test.fit(np.array(list(map(cv2.imread, glob.glob(os.path.join("data2/train/", '*/*/*.png'))))))
 
     print("fit done")
 
