@@ -1,7 +1,6 @@
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
-import os
 
 
 POINT_DIAMETER = 5.0
@@ -30,7 +29,10 @@ class LakeGraphicsView(QGraphicsView):
         scene.setBackgroundBrush(QBrush(QColor(100, 100, 100)))
         max_x, min_x, max_y, min_y = -float("Inf"), float("Inf"), -float("Inf"), float("Inf")
         for file_left, file_right, score, x, y in self.point_list:
-            path = os.path.split(file_left)
+            path = file_left.split('/')
+            if len(path) < 4:
+                print("Warning: path", file_left, "is shorter than expected")
+                continue
             # continue if the options specify that the point must not by displayed
             if (path[-2] == "1" and not self.display_positive) or (path[-2] == "-1" and not self.display_negative):
                 continue
@@ -38,7 +40,7 @@ class LakeGraphicsView(QGraphicsView):
                 continue
             brush = QBrush(QColor(int(255 * (1.0 - score)), int(255 * score), 0))
             pen = QPen(brush, 1.0)
-            fx, fy = -float(x), -float(y)
+            fx, fy = float(x), -float(y)
             scene.addEllipse(fx, fy, self.diameter, self.diameter, pen, brush)
             max_x, min_x = max(max_x, fx), min(min_x, fx)
             max_y, min_y = max(max_y, fy), min(min_y, fy)
@@ -53,10 +55,14 @@ class LakeGraphicsView(QGraphicsView):
         super().mousePressEvent(event)
         point = self.mapToScene(event.pos())
         for file_left, file_right, score, x, y in self.point_list:
-            fx, fy = -float(x), -float(y)
-            if fx <= point.x <= fx + POINT_DIAMETER and fy <= point.x <= fy + POINT_DIAMETER:
+            fx, fy = float(x), -float(y)
+            if fx <= point.x() <= fx + self.diameter and fy <= point.y() <= fy + self.diameter:
                 self.pair_selected.emit(file_left, file_right)
                 return
+
+    def resizeEvent(self, event):
+        self.fitInView(self.scene().sceneRect(), Qt.KeepAspectRatio)
+        super().resizeEvent(event)
 
     @pyqtSlot(str)
     def set_display_dataset(self, selection_message: str):

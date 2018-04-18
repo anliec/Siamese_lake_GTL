@@ -16,9 +16,11 @@ import argparse
 import pandas as pd
 import matplotlib.pyplot as plt
 import random
+import pickle
 
 from dataset_loader import load_data_set
-from siamese import get_siamese_layers
+from siamese import get_siamese_layers, data_triple_generator_from_dir
+from evaluator.evaluate import DatasetTester
 
 TRAIN_DATASET_SIZE = 10706
 TEST_DATASET_SIZE = 1299
@@ -90,48 +92,6 @@ def unfroze_core_model_layers(siamese_model: Model, number_of_layers_to_unfroze:
         layer.trainable = True
 
 
-def data_triple_generator(datagen: ImageDataGenerator, x_im1: np.ndarray, x_im2: np.ndarray, y: np.ndarray, batch_size: int):
-    for i, ((im1, label), (im2, _)) in enumerate(zip(datagen.flow(x_im1, y, batch_size=batch_size),
-                                                     datagen.flow(x_im2, y, batch_size=batch_size))):
-        if random.random() <= 0.5:
-            yield [im1, im2], label
-        else:
-            yield [im2, im1], label
-
-
-def data_triple_generator_from_dir(datagen: ImageDataGenerator, dataset_dir, batch_size: int, seed=6,
-                                   save_to_dir: str=None, shuffle=True, include_label=True):
-    left_sav_dir, right_sav_dir = None, None
-    if save_to_dir is not None:
-        left_sav_dir += '/left'
-        right_sav_dir += '/right'
-    left_flow = datagen.flow_from_directory(directory=dataset_dir + '/left',
-                                            class_mode='categorical',
-                                            batch_size=batch_size,
-                                            target_size=(224, 224),
-                                            shuffle=shuffle,
-                                            seed=seed,
-                                            save_to_dir=left_sav_dir)
-    right_flow = datagen.flow_from_directory(directory=dataset_dir + '/right',
-                                             class_mode='categorical',
-                                             batch_size=batch_size,
-                                             target_size=(224, 224),
-                                             shuffle=shuffle,
-                                             seed=seed,
-                                             save_to_dir=right_sav_dir)
-    for (im1, label1), (im2, label2) in zip(left_flow, right_flow):
-        if random.random() <= 0.5:
-            if include_label:
-                yield [im1, im2], label1
-            else:
-                yield [im1, im2]
-        else:
-            if include_label:
-                yield [im2, im1], label1
-            else:
-                yield [im2, im1]
-
-
 def save_results(path, history):
     if path is not None:
         os.makedirs(path, exist_ok=True)
@@ -164,7 +124,7 @@ if __name__ == '__main__':
                         type=int,
                         dest="batch_size")
     parser.add_argument('-bn', '--batch-norm',
-                        default=False,
+                        default=True,
                         type=bool,
                         dest="use_batch_norm")
     parser.add_argument('-m', '--merge-layer',
@@ -202,17 +162,31 @@ if __name__ == '__main__':
     parser.add_argument('-op', '--optimizer',
                         default='adam',
                         type=str,
-                           dest="optimizer")
+                        dest="optimizer")
     parser.add_argument('-f', '--fine-tuning-iteration',
                         default=0,
                         type=int,
                         dest="fine_tuning_iteration")
+    parser.add_argument('-dp', '--dataset-path',
+                        default="./data",
+                        type=str,
+                        dest="data_set_path")
     args = parser.parse_args()
     if args.output_dir is not None:
         model_save_path = args.output_dir + "_models"
         os.makedirs(model_save_path, exist_ok=True)
     else:
         model_save_path = None
+
+    # check dataset
+    if not os.path.isdir(args.data_set_path):
+        raise ValueError("the specified dataset directory ('{}') is not a directory".format(args.data_set_path))
+    # check if left and right have the same number of images
+    for data_class in ['1', '-1']:
+        for dataset in ['train', 'test']:
+            left_images_paths = glob.glob(os.path.join(args.data_set_path, dataset, 'left', data_class, '/*'))
+            right_images_paths = glob.glob(os.path.join(args.data_set_path, dataset, 'right', data_class, '/*'))
+            assert len(left_images_paths) == len(right_images_paths)
 
     model = get_siamese_vgg_model(add_batch_norm=args.use_batch_norm,
                                   train_from_layers=args.vgg_frozen_layer,
@@ -251,16 +225,21 @@ if __name__ == '__main__':
         brightness_range=[1.0, 1.0]
     )
 
-    # img_paths = glob.glob(os.path.join("data2/test/", '*/*/*.png'))
-    # fit_images = np.array(map(cv2.imread, img_paths))
-    datagen.fit(np.array(list(map(cv2.imread, glob.glob(os.path.join("data/train/", '*/*/*.png'))))))
-    datagen_test.fit(np.array(list(map(cv2.imread, glob.glob(os.path.join("data/train/", '*/*/*.png'))))))
+    train_images_paths = glob.glob(os.path.join(args.data_set_path, 'train/*/*/*'))
+    test_images_paths = glob.glob(os.path.join(args.data_set_path, 'test/*/*/*'))
+    datagen.fit(np.array(list(map(cv2.imread, train_images_paths[:200]))))
+    datagen_test.fit(np.array(list(map(cv2.imread, test_images_paths[:200]))))
 
     print("fit done")
 
-    # triple_generator = data_triple_generator(datagen, x_1_train, x_2_train, y_train, batch_size)
-    triple_generator = data_triple_generator_from_dir(datagen, "data2/train", args.batch_size)
-    triple_generator_test = data_triple_generator_from_dir(datagen_test, "data2/test", args.batch_size, shuffle=False)
+    # init triple generator (image 1, image 2, label)
+    triple_generator = data_triple_generator_from_dir(datagen,
+                                                      os.path.join(args.data_set_path, 'train'),
+                                                      args.batch_size)
+    triple_generator_test = data_triple_generator_from_dir(datagen_test,
+                                                           os.path.join(args.data_set_path, 'test'),
+                                                           args.batch_size,
+                                                           shuffle=False)
 
     # train the top layer of the classifier
     history = model.fit_generator(generator=triple_generator,
@@ -279,6 +258,7 @@ if __name__ == '__main__':
                               columns=["epoch", ] + list(history.history.keys()) + ['fine_tuning']
                               )
 
+    # save current model to disk if a path was specified
     if model_save_path is not None:
         model.save(os.path.join(model_save_path, "model0.h5"), overwrite=True)
 
@@ -315,7 +295,7 @@ if __name__ == '__main__':
                                                     columns=["epoch", ] + list(history.history.keys()) + ['fine_tuning']
                                                     )
                                        )
-
+        # save current model to disk if a path was specified
         if model_save_path is not None:
             model.save(os.path.join(model_save_path, "model" + str(i) + ".h5"), overwrite=True)
 
@@ -329,5 +309,12 @@ if __name__ == '__main__':
         with open(os.path.join(args.output_dir, 'args.txt'), mode='w') as f:
             f.write(' '.join(str(sys.argv)))
 
-    
+        # evaluate model
+        tester = DatasetTester(args.data_set_path)
+        result_list = tester.evaluate(model,
+                                      mode="both",
+                                      batch_size=args.batch_size,
+                                      add_coordinate=True)
+
+        pickle.dump(result_list, os.path.join(args.output_dir, 'evaluation.pickle'))
 
