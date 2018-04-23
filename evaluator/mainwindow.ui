@@ -27,8 +27,9 @@
     <property name="title">
      <string>Fi&amp;le</string>
     </property>
-    <addaction name="actionOpen_siamese_model"/>
     <addaction name="actionSelect_dataset"/>
+    <addaction name="actionOpen_siamese_model"/>
+    <addaction name="actionOpen_results"/>
     <addaction name="actionQuit"/>
    </widget>
    <addaction name="menuFile"/>
@@ -36,7 +37,7 @@
   <widget class="QStatusBar" name="statusbar"/>
   <action name="actionOpen_siamese_model">
    <property name="text">
-    <string>&amp;Open siamese model or results</string>
+    <string>&amp;Open siamese model</string>
    </property>
   </action>
   <action name="actionQuit">
@@ -46,7 +47,12 @@
   </action>
   <action name="actionSelect_dataset">
    <property name="text">
-    <string>Select dataset</string>
+    <string>&amp;Select dataset</string>
+   </property>
+  </action>
+  <action name="actionOpen_results">
+   <property name="text">
+    <string>Open results</string>
    </property>
   </action>
  </widget>
