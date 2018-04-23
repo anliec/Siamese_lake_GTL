@@ -12,22 +12,27 @@ class PairWindow(QWidget):
         self.ui = Ui_Form()
         self.ui.setupUi(self)
 
-        self.ui.lb_image1.setScaledContents(True)
-        self.ui.lb_image2.setScaledContents(True)
+        # self.ui.lb_image1.setScaledContents(True)
+        # self.ui.lb_image2.setScaledContents(True)
         self.pixmap1 = None
         self.pixmap2 = None
 
     @pyqtSlot(str, str)
     def set_image_pair(self, path_to_image1: str, path_to_image2: str):
-        self.pixmap1 = QPixmap(path_to_image1)
-        self.pixmap2 = QPixmap(path_to_image2)
-        self.ui.lb_image1.setPixmap(self.pixmap1.scaled(self.ui.lb_image1.size(),
-                                                        Qt.KeepAspectRatio,
-                                                        Qt.SmoothTransformation))
-        self.ui.lb_image2.setPixmap(self.pixmap2.scaled(self.ui.lb_image2.size(),
-                                                        Qt.KeepAspectRatio,
-                                                        Qt.SmoothTransformation))
-        self.show()
+        try:
+            self.pixmap1 = QPixmap(path_to_image1)
+            self.pixmap2 = QPixmap(path_to_image2)
+            self.ui.lb_image1.setPixmap(self.pixmap1.scaled(self.ui.lb_image1.size(),
+                                                            Qt.KeepAspectRatio,
+                                                            Qt.SmoothTransformation))
+            self.ui.lb_image2.setPixmap(self.pixmap2.scaled(self.ui.lb_image2.size(),
+                                                            Qt.KeepAspectRatio,
+                                                            Qt.SmoothTransformation))
+            self.setEnabled(True)
+            self.show()
+        except Exception:
+            print("Error when loading file", path_to_image1, "and", path_to_image2)
+            self.setEnabled(False)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)

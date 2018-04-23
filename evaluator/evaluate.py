@@ -7,7 +7,7 @@ from keras.preprocessing.image import ImageDataGenerator
 from keras.models import Model
 from keras.models import load_model
 
-from VGGsiamese import data_triple_generator_from_dir
+from siamese import data_triple_generator_from_dir
 
 base_path = "/cs-share/pradalier/lake/VBags"
 
@@ -53,7 +53,8 @@ class DatasetTester:
         file_list_left = glob.glob(dataset_path_left)
         file_list_right = glob.glob(dataset_path_right)
         number_of_file = len(file_list_left)
-        assert number_of_file == len(file_list_right)
+        if number_of_file != len(file_list_right):
+            raise ValueError("{}: {} and {} are not the same".format(mode, number_of_file, len(file_list_right)))
 
         triple_generator = data_triple_generator_from_dir(datagen=self.datagen,
                                                           dataset_dir=os.path.join(self.dataset_base_path, dataset),
@@ -67,8 +68,9 @@ class DatasetTester:
         result_list = []
 
         for file_left, file_right, p in zip(file_list_left, file_list_right, prediction[:number_of_file]):
-            label = os.path.split(file_left)[-2]
-            # assert label == os.path.split(file_right)[-2]
+            label = file_left.split('/')[-2]
+            if label != file_right.split('/')[-2]:
+                print("Warning:", file_left, "and", file_right, "are probably not a pair")
             if label == '1':
                 score = p[0]
             else:
@@ -79,13 +81,17 @@ class DatasetTester:
                 file_name = os.path.split(file_left)[-1]
                 file_name = file_name[:-4]  # get read of file extension (assuming that it's .png or .jpg)
                 file_descriptor = file_name.split('_')
-                if len(file_descriptor) == 4:
+                if len(file_descriptor) == 8:
                     x, y = file_descriptor[2:4]
                 elif len(file_descriptor) == 2:
                     d, seq = file_descriptor[0].split('-')
-                    x, y = get_gps_coord(d, seq)
+                    try:
+                        x, y = get_gps_coord(d, seq)
+                    except ValueError as e:
+                        print("Error when loadinging coordinate:", str(e))
+                        continue
                 else:
-                    # raise RuntimeWarning("Incorrect file name:", file_name)
+                    print("Incorrect file name:", file_name)
                     continue
                 result_list.append((file_left, file_right, score, x, y))
 

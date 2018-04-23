@@ -1,27 +1,10 @@
-"""Trains a Siamese MLP on pairs of digits from the MNIST dataset.
-It follows Hadsell-et-al.'06 [1] by computing the Euclidean distance on the
-output of the shared network and by optimizing the contrastive loss (see paper
-for mode details).
-# References
-- Dimensionality Reduction by Learning an Invariant Mapping
-    http://yann.lecun.com/exdb/publis/pdf/hadsell-chopra-lecun-06.pdf
-Gets to 97.2% test accuracy after 20 epochs.
-2 seconds per epoch on a Titan X Maxwell GPU
-
-src: https://github.com/keras-team/keras/blob/master/examples/mnist_siamese.py
-"""
-
-from __future__ import absolute_import
-from __future__ import print_function
-import numpy as np
-
-import random
-from keras.datasets import mnist
 from keras.models import Model
-from keras.layers import Input, Flatten, Dense, Dropout, Lambda, Concatenate, BatchNormalization, Subtract, Dot,\
-    Multiply, Reshape
-from keras.optimizers import RMSprop
+from keras.layers import Input, Flatten, Dense, Dropout, Lambda, Concatenate, BatchNormalization, Subtract,\
+    Multiply
+from keras.preprocessing.image import ImageDataGenerator
 from keras import backend as K
+import random
+import numpy as np
 
 
 def get_siamese_model(src_model: Model, input_shape: tuple, add_batch_norm=False, merge_type='concatenate'):
@@ -69,5 +52,47 @@ def get_siamese_layers(src_model: Model, input_a, input_b, add_batch_norm=False,
         siamese = BatchNormalization(name='merge_normalisation')(siamese)
 
     return siamese
+
+
+def data_triple_generator(datagen: ImageDataGenerator, x_im1: np.ndarray, x_im2: np.ndarray, y: np.ndarray, batch_size: int):
+    for i, ((im1, label), (im2, _)) in enumerate(zip(datagen.flow(x_im1, y, batch_size=batch_size),
+                                                     datagen.flow(x_im2, y, batch_size=batch_size))):
+        if random.random() <= 0.5:
+            yield [im1, im2], label
+        else:
+            yield [im2, im1], label
+
+
+def data_triple_generator_from_dir(datagen: ImageDataGenerator, dataset_dir, batch_size: int, seed=6,
+                                   save_to_dir: str=None, shuffle=True, include_label=True):
+    left_sav_dir, right_sav_dir = None, None
+    if save_to_dir is not None:
+        left_sav_dir += '/left'
+        right_sav_dir += '/right'
+    left_flow = datagen.flow_from_directory(directory=dataset_dir + '/left',
+                                            class_mode='categorical',
+                                            batch_size=batch_size,
+                                            target_size=(224, 224),
+                                            shuffle=shuffle,
+                                            seed=seed,
+                                            save_to_dir=left_sav_dir)
+    right_flow = datagen.flow_from_directory(directory=dataset_dir + '/right',
+                                             class_mode='categorical',
+                                             batch_size=batch_size,
+                                             target_size=(224, 224),
+                                             shuffle=shuffle,
+                                             seed=seed,
+                                             save_to_dir=right_sav_dir)
+    for (im1, label1), (im2, label2) in zip(left_flow, right_flow):
+        if random.random() <= 0.5:
+            if include_label:
+                yield [im1, im2], label1
+            else:
+                yield [im1, im2]
+        else:
+            if include_label:
+                yield [im2, im1], label1
+            else:
+                yield [im2, im1]
 
 

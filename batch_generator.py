@@ -5,15 +5,15 @@ import datetime
 if __name__ == '__main__':
     batch_size = [40]
     merge_layer = ['dot', 'multiply', 'l1', 'l2']
-    epochs = [10]
+    epochs = [5]
     vgg_frozen_size = [19]
     batch_norm = [True]
-    dropout = [0.1, 0.25]
+    dropout = [0.1]
     learning_rate = [0.0001]
     decay = [0.0]
     optimizer = ['adam']
-    block_to_remove = [1, 2, 3]
-    fine_tuning_iter = 3
+    block_to_remove = [1, 2]
+    fine_tuning_iter = 0
 
     i = 0
     with open("cmd.txt", 'w') as f:
