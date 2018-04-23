@@ -28,7 +28,10 @@ class Ui_MainWindow(object):
         self.actionOpen_siamese_model.setObjectName("actionOpen_siamese_model")
         self.actionQuit = QtWidgets.QAction(MainWindow)
         self.actionQuit.setObjectName("actionQuit")
+        self.actionSelect_dataset = QtWidgets.QAction(MainWindow)
+        self.actionSelect_dataset.setObjectName("actionSelect_dataset")
         self.menuFile.addAction(self.actionOpen_siamese_model)
+        self.menuFile.addAction(self.actionSelect_dataset)
         self.menuFile.addAction(self.actionQuit)
         self.menubar.addAction(self.menuFile.menuAction())
 
@@ -39,6 +42,7 @@ class Ui_MainWindow(object):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
         self.menuFile.setTitle(_translate("MainWindow", "Fi&le"))
-        self.actionOpen_siamese_model.setText(_translate("MainWindow", "Open siamese model"))
-        self.actionQuit.setText(_translate("MainWindow", "Quit"))
+        self.actionOpen_siamese_model.setText(_translate("MainWindow", "&Open siamese model or results"))
+        self.actionQuit.setText(_translate("MainWindow", "&Quit"))
+        self.actionSelect_dataset.setText(_translate("MainWindow", "Select dataset"))
 
