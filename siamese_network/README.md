@@ -7,7 +7,7 @@ of the year.
 ## Requirement
 
  - Python >= 3.6
- - [keras](keras.io) (only tested with TensorFlow backend)
+ - [keras](https://github.com/keras-team/keras) (only tested with TensorFlow backend)
  - numpy
  - opencv (cv2)
  - pandas
