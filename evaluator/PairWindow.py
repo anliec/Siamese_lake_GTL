@@ -17,8 +17,8 @@ class PairWindow(QWidget):
         self.pixmap1 = None
         self.pixmap2 = None
 
-    @pyqtSlot(str, str)
-    def set_image_pair(self, path_to_image1: str, path_to_image2: str):
+    @pyqtSlot(str, str, float)
+    def set_image_pair(self, path_to_image1: str, path_to_image2: str, score: float=-1.0):
         try:
             self.pixmap1 = QPixmap(path_to_image1)
             self.pixmap2 = QPixmap(path_to_image2)
@@ -28,6 +28,12 @@ class PairWindow(QWidget):
             self.ui.lb_image2.setPixmap(self.pixmap2.scaled(self.ui.lb_image2.size(),
                                                             Qt.KeepAspectRatio,
                                                             Qt.SmoothTransformation))
+            self.ui.lb_path1.setText(path_to_image1)
+            self.ui.lb_path2.setText(path_to_image2)
+            if score != -1.0:
+                self.ui.lb_score.setText("score: " + str(score))
+            else:
+                self.ui.lb_score.setText("")
             self.setEnabled(True)
             self.show()
         except Exception:

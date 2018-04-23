@@ -7,7 +7,17 @@ import random
 import numpy as np
 
 
-def get_siamese_model(src_model: Model, input_shape: tuple, add_batch_norm=False, merge_type='concatenate'):
+def get_siamese_model(src_model: Model, input_shape: tuple, add_batch_norm: bool=False, merge_type: str='concatenate'):
+    """
+    Create a siamese model from the given parameters
+    :param src_model: model used for the siamese part, for example if vgg is provided here this will build a siamese
+        network where using vgg to transform the images
+    :param input_shape: shape of the input of the given model
+    :param add_batch_norm: if batch normalisation must be added around the merge layers
+    :param merge_type: how to merge the output of the siamese network, one of 'dot', 'multiply',
+        'subtract', 'l1', 'l2' or 'concatenate'.
+    :return: the siamese model
+    """
     input_a = Input(shape=input_shape)
     input_b = Input(shape=input_shape)
 
@@ -18,6 +28,17 @@ def get_siamese_model(src_model: Model, input_shape: tuple, add_batch_norm=False
 
 
 def get_siamese_layers(src_model: Model, input_a, input_b, add_batch_norm=False, merge_type='concatenate'):
+    """
+    Create a set of layers needed to construct a siamese model (siamese structure plus merging method)
+    :param src_model:  model used for the siamese part, for example if vgg is provided here this will build a siamese
+        network where using vgg to transform the images
+    :param input_a: input layer for one side of the model
+    :param input_b: input layer for the other side of the model
+    :param add_batch_norm: if batch normalisation must be added around the merge layers
+    :param merge_type: how to merge the output of the siamese network, one of 'dot', 'multiply',
+        'subtract', 'l1', 'l2' or 'concatenate'.
+    :return: output layer of siamese part
+    """
     processed_a = src_model(input_a)
     processed_b = src_model(input_b)
     if add_batch_norm:
@@ -54,17 +75,20 @@ def get_siamese_layers(src_model: Model, input_a, input_b, add_batch_norm=False,
     return siamese
 
 
-def data_triple_generator(datagen: ImageDataGenerator, x_im1: np.ndarray, x_im2: np.ndarray, y: np.ndarray, batch_size: int):
-    for i, ((im1, label), (im2, _)) in enumerate(zip(datagen.flow(x_im1, y, batch_size=batch_size),
-                                                     datagen.flow(x_im2, y, batch_size=batch_size))):
-        if random.random() <= 0.5:
-            yield [im1, im2], label
-        else:
-            yield [im2, im1], label
-
-
 def data_triple_generator_from_dir(datagen: ImageDataGenerator, dataset_dir, batch_size: int, seed=6,
-                                   save_to_dir: str=None, shuffle=True, include_label=True):
+                                   save_to_dir: str=None, shuffle: bool=True, include_label: bool=True):
+    """
+    Iterator using keras ImageDataGenerator to iterate the dataset (without loading it to memory) and provide paires
+    of images and their corresponding label if needed
+    :param datagen: Data generator which used for both image of the pair
+    :param dataset_dir: Path to the directory containing the dataset (including the test / train part)
+    :param batch_size: Size of the generated batch
+    :param seed: Random seed of the generator
+    :param save_to_dir: Path where the augmented images will be saved, None to prevent saving
+    :param shuffle: True to give the paires in a random order, False to provide them the same way the os give them
+    :param include_label: set to True to add the label to image pair, False to only provide the image pair (useful for
+        prediction)
+    """
     left_sav_dir, right_sav_dir = None, None
     if save_to_dir is not None:
         left_sav_dir += '/left'

@@ -1,8 +1,9 @@
 import matplotlib
+# solve plotting issues with matplotlib when no X connection is available
 matplotlib.use('Agg')
 
-from keras.applications import VGG16, ResNet50
-from keras.layers import Dense, Input, Dropout, BatchNormalization
+from keras.applications import VGG16
+from keras.layers import Dense, Input, Dropout
 from keras.models import Model
 from keras.preprocessing.image import ImageDataGenerator
 from keras.optimizers import Adam, RMSprop
@@ -10,20 +11,14 @@ from keras import backend as K
 import numpy as np
 import glob
 import os
-import sys
 import cv2
 import argparse
 import pandas as pd
 import matplotlib.pyplot as plt
-import random
 import pickle
 
-from dataset_loader import load_data_set
-from siamese import get_siamese_layers, data_triple_generator_from_dir
+from siamese_network.siamese import get_siamese_layers, data_triple_generator_from_dir
 from evaluator.evaluate import DatasetTester
-
-TRAIN_DATASET_SIZE = 10706
-TEST_DATASET_SIZE = 1299
 
 
 K.set_image_dim_ordering('tf')
@@ -37,7 +32,7 @@ def get_siamese_vgg_model(image_shape=(224, 224, 3), weights='imagenet', train_f
     :param image_shape: shape of input ((224, 224, 3) if the original weight are used)
     :param weights: source of the weight to use on VGG, can by 'imagenet' or 'None' (or a path to weights)
     :param train_from_layers: number of layers to froze starting from the first layer (default 19: all)
-    :param merge_type: how to merge the output of the siamese network, on of 'dot', 'multiply',
+    :param merge_type: how to merge the output of the siamese network, one of 'dot', 'multiply',
         'subtract', 'l1', 'l2' or 'concatenate'.
     :param add_batch_norm: True to add batch normalization before merging layers (default: False)
     :param layer_block_to_remove: How many block of layers to remove from VGG, starting at the end
@@ -83,7 +78,14 @@ def get_siamese_vgg_model(image_shape=(224, 224, 3), weights='imagenet', train_f
     return Model(inputs=[input_a, input_b], outputs=top)
 
 
-def unfroze_core_model_layers(siamese_model: Model, number_of_layers_to_unfroze: int, model_optimizer):
+def unfroze_core_model_layers(siamese_model: Model, number_of_layers_to_unfroze: int):
+    """
+    Get into the given siamese model to unfroze the last layers of the convectional part
+    :param siamese_model: The siamese model which will be modified
+    :param number_of_layers_to_unfroze: Number of layers where weight will be trainable after this function,
+    starting from last layers.
+    :return: None
+    """
     model_layer = siamese_model.layers[2]  # layers 0 and 1 are input, model is the third
     unfroze_limit = number_of_layers_to_unfroze + number_of_layers_to_unfroze // 4 + 1
     for layer in model_layer.layers[:-unfroze_limit]:
@@ -92,7 +94,14 @@ def unfroze_core_model_layers(siamese_model: Model, number_of_layers_to_unfroze:
         layer.trainable = True
 
 
-def save_results(path, history):
+def save_results(path: str, history: pd.DataFrame):
+    """
+    Save the given history to the given path with some plots of the results
+    :param path: path were all the files will be created
+    :param history: a panda dataframe containing the information about the learning process, mostly the information
+    from model.fit.
+    :return: None
+    """
     if path is not None:
         os.makedirs(path, exist_ok=True)
         # write history to csv for late160r use
@@ -106,7 +115,7 @@ def save_results(path, history):
         plt.ylabel('accuracy')
         plt.xlabel('epoch')
         plt.legend()
-        plt.savefig(os.path.join(args.output_dir, 'accuracy.png'))
+        plt.savefig(os.path.join(path, 'accuracy.png'))
         # Loss
         plt.figure()
         plt.plot(history.get('epoch'), history.get('val_loss'), label='val_loss')
@@ -117,7 +126,10 @@ def save_results(path, history):
         plt.savefig(os.path.join(path, 'loss.png'))
 
 
-if __name__ == '__main__':
+def main():
+    """
+    Build and train a VGG Siamese network using the provided command line arguments
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument('-b', '--batch-size',
                         default=40,
@@ -230,6 +242,11 @@ if __name__ == '__main__':
     datagen.fit(np.array(list(map(cv2.imread, train_images_paths[:200]))))
     datagen_test.fit(np.array(list(map(cv2.imread, test_images_paths[:200]))))
 
+    if len(test_images_paths) % 2 == 1 or len(train_images_paths) % 2 == 1:
+        raise ValueError("The dataset is probably incorrect as it contain an even number of images")
+    number_of_test_pair = len(test_images_paths) // 2
+    number_of_train_pair = len(train_images_paths) // 2
+
     print("fit done")
 
     # init triple generator (image 1, image 2, label)
@@ -243,11 +260,11 @@ if __name__ == '__main__':
 
     # train the top layer of the classifier
     history = model.fit_generator(generator=triple_generator,
-                                  steps_per_epoch=TRAIN_DATASET_SIZE // args.batch_size + 1,
+                                  steps_per_epoch=number_of_train_pair // args.batch_size + 1,
                                   epochs=args.number_of_epoch,
                                   verbose=1,
                                   validation_data=triple_generator_test,
-                                  validation_steps=TEST_DATASET_SIZE // args.batch_size + 1,
+                                  validation_steps=number_of_test_pair // args.batch_size + 1,
                                   initial_epoch=0
                                   )
     # save the result for analysis
@@ -273,18 +290,21 @@ if __name__ == '__main__':
 
     # now do some fine tuning if asked from command line
     for i in range(1, args.fine_tuning_iteration + 1):
-        unfroze_core_model_layers(model, i, opt)
+        # unfroze the model a bit more
+        unfroze_core_model_layers(model, i)
 
+        # compile the model to apply the modifications
         model.compile(loss='categorical_crossentropy',
                       optimizer=opt,
                       metrics=['categorical_accuracy'])
 
+        # fit the model with this new freedom
         history = model.fit_generator(generator=triple_generator,
-                                      steps_per_epoch=TRAIN_DATASET_SIZE // args.batch_size + 1,
+                                      steps_per_epoch=number_of_train_pair // args.batch_size + 1,
                                       epochs=(i + 1) * args.number_of_epoch,
                                       verbose=1,
                                       validation_data=triple_generator_test,
-                                      validation_steps=TEST_DATASET_SIZE // args.batch_size + 1,
+                                      validation_steps=number_of_test_pair // args.batch_size + 1,
                                       initial_epoch=i * args.number_of_epoch
                                       )
         # save the result for analysis
@@ -292,13 +312,13 @@ if __name__ == '__main__':
         h_values = history.history.values()
         values = np.array([epoch, ] + list(h_values) + [[i] * len(epoch)])
         df_history = df_history.append(pd.DataFrame(data=values.T,
-                                                    columns=["epoch", ] + list(history.history.keys()) + ['fine_tuning']
-                                                    )
-                                       )
+                                                    columns=["epoch"] + list(history.history.keys()) + ['fine_tuning']))
         # save current model to disk if a path was specified
         if model_save_path is not None:
             model.save(os.path.join(model_save_path, "model" + str(i) + ".h5"), overwrite=True)
 
+    # add the training argument to history, to make filtering easier when all
+    # the different history will be merged together.
     for k, v in args.__dict__.items():
         kwargs = {k: [v] * df_history.shape[0]}
         df_history = df_history.assign(**kwargs)
@@ -306,15 +326,16 @@ if __name__ == '__main__':
     save_results(args.output_dir, df_history)
 
     if args.output_dir is not None:
-        with open(os.path.join(args.output_dir, 'args.txt'), mode='w') as f:
-            f.write(' '.join(str(sys.argv)))
-
         # evaluate model
         tester = DatasetTester(args.data_set_path)
         result_list = tester.evaluate(model,
                                       mode="both",
                                       batch_size=args.batch_size,
                                       add_coordinate=True)
+        with open(os.path.join(args.output_dir, 'evaluation.pickle'), 'wb') as handle:
+            pickle.dump(result_list, handle)
 
-        pickle.dump(result_list, os.path.join(args.output_dir, 'evaluation.pickle'))
+
+if __name__ == '__main__':
+    main()
 

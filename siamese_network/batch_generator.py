@@ -3,6 +3,9 @@ import datetime
 
 
 if __name__ == '__main__':
+    """
+    Generate the cmd.txt file used to test different set of parameter
+    """
     batch_size = [40]
     merge_layer = ['dot', 'multiply', 'l1', 'l2']
     epochs = [5]

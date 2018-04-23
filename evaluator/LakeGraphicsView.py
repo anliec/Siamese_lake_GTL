@@ -7,7 +7,7 @@ POINT_DIAMETER = 5.0
 
 
 class LakeGraphicsView(QGraphicsView):
-    pair_selected = pyqtSignal([str, str])
+    pair_selected = pyqtSignal([str, str, float])
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -19,6 +19,15 @@ class LakeGraphicsView(QGraphicsView):
         self.display_positive = True
         self.display_negative = True
         self.diameter = POINT_DIAMETER
+        # enable map style navigation
+        self.setDragMode(QGraphicsView.ScrollHandDrag)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+
+    def wheelEvent(self, event):
+        num_degree = event.angleDelta() / 8
+        factor = 1.01 ** num_degree.y()
+        self.scale(factor, factor)
 
     def set_point_list(self, point_list):
         self.point_list = point_list
@@ -49,15 +58,13 @@ class LakeGraphicsView(QGraphicsView):
         scene.update(scene.sceneRect())
         self.setScene(scene)
 
-        self.fitInView(scene.sceneRect(), Qt.KeepAspectRatio)
-
     def mousePressEvent(self, event: QMouseEvent):
         super().mousePressEvent(event)
         point = self.mapToScene(event.pos())
         for file_left, file_right, score, x, y in self.point_list:
             fx, fy = float(x), -float(y)
             if fx <= point.x() <= fx + self.diameter and fy <= point.y() <= fy + self.diameter:
-                self.pair_selected.emit(file_left, file_right)
+                self.pair_selected.emit(file_left, file_right, score)
                 return
 
     def resizeEvent(self, event):
@@ -77,6 +84,7 @@ class LakeGraphicsView(QGraphicsView):
             self.display_train = True
 
         self.update_scene()
+        self.fitInView(self.scene().sceneRect(), Qt.KeepAspectRatio)
 
     @pyqtSlot(str)
     def set_display_examples(self, selection_message: str):
@@ -91,6 +99,7 @@ class LakeGraphicsView(QGraphicsView):
             self.display_positive = True
 
         self.update_scene()
+        self.fitInView(self.scene().sceneRect(), Qt.KeepAspectRatio)
 
     @pyqtSlot(float)
     def set_point_diameter(self, new_diameter: float):
