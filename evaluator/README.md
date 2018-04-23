@@ -35,6 +35,8 @@ right.
 If you click on a point the corresponding pair will be displayed on another
 window.
 
+-------
+
 ![screenshot](screenshot.png)
 
 
