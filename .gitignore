@@ -6,7 +6,6 @@
 !*.sh
 !*.ipynb
 !.gitignore
-!*.png
 !makefile
 !extension-functions.c
 !extension-functions.so
