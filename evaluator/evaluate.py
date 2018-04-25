@@ -43,7 +43,7 @@ class DatasetTester:
         else:
             self.datagen = datagen_test
 
-    def evaluate(self, model: Model, mode="train", batch_size=32, add_coordinate=True):
+    def evaluate(self, model: Model, mode: str="train", batch_size: int=32, add_coordinate: bool=True):
         if mode == "train":
             dataset = 'train'
         elif mode == "test":
@@ -102,15 +102,6 @@ class DatasetTester:
 
         return result_list
 
-
-if __name__ == '__main__':
-    tester = DatasetTester()
-
-    model = load_model("./runs_results/2018-04-11_0_models/model3.h5")
-
-    p = tester.evaluate(model, mode='test')
-
-    print(p)
 
 
 

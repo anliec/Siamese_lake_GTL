@@ -127,12 +127,12 @@ def save_results(path: str, history: pd.DataFrame):
         # Evaluate model and save results
 
 
-def evaluate_model(model, tester, currant_epoch, save_path):
+def evaluate_model(model, tester: DatasetTester, currant_epoch: int, save_path: str, batch_size: int):
     if save_path is not None:
         # evaluate model
         result_list = tester.evaluate(model,
                                       mode="both",
-                                      batch_size=save_path,
+                                      batch_size=batch_size,
                                       add_coordinate=True)
         file_name = "evaluation_epoch_" + str(currant_epoch) + ".pickle"
         with open(os.path.join(save_path, file_name), 'wb') as handle:
@@ -291,11 +291,10 @@ def main():
     df_history = pd.DataFrame(data=values.T,
                               columns=["epoch", ] + list(history.history.keys()) + ['fine_tuning']
                               )
-    evaluate_model(model, tester, args.number_of_epoch, model_save_path)
-
     # save current model to disk if a path was specified
     if model_save_path is not None:
         model.save(os.path.join(model_save_path, "model0.h5"), overwrite=True)
+    evaluate_model(model, tester, args.number_of_epoch, model_save_path, args.batch_size)
 
     # update optimizer for fine tuning
     if args.optimizer == 'adam':
@@ -332,10 +331,10 @@ def main():
         values = np.array([epoch, ] + list(h_values) + [[i] * len(epoch)])
         df_history = df_history.append(pd.DataFrame(data=values.T,
                                                     columns=["epoch"] + list(history.history.keys()) + ['fine_tuning']))
-        evaluate_model(model, tester, args.number_of_epoch * i, model_save_path)
         # save current model to disk if a path was specified
         if model_save_path is not None:
             model.save(os.path.join(model_save_path, "model" + str(i) + ".h5"), overwrite=True)
+        evaluate_model(model, tester, args.number_of_epoch * i, model_save_path, args.batch_size)
 
     # add the training argument to history, to make filtering easier when all
     # the different history will be merged together.
