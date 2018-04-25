@@ -3,13 +3,17 @@ import glob
 import cv2
 import numpy as np
 import csv
+import socket
 from keras.preprocessing.image import ImageDataGenerator
 from keras.models import Model
 from keras.models import load_model
 
 from siamese_network.siamese import data_triple_generator_from_dir
 
-base_path = "/cs-share/pradalier/lake/VBags"
+if socket.gethostname() == "k20c-3":
+    base_path = "/mnt/lake/VBags"
+else:
+    base_path = "/cs-share/pradalier/lake/VBags"
 
 
 def get_gps_coord(d, seq):
