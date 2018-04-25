@@ -22,21 +22,26 @@ def get_gps_coord(d, seq):
 
 
 class DatasetTester:
-    def __init__(self, dataset_path="./data2"):
+    def __init__(self, dataset_path="./data2", datagen_test: ImageDataGenerator=None):
         self.dataset_base_path = dataset_path
-        self.datagen = ImageDataGenerator(
-                featurewise_center=True,
-                featurewise_std_normalization=True,
-                rotation_range=0,
-                width_shift_range=0.0,
-                height_shift_range=0.0,
-                zoom_range=[1.0, 1.0],
-                fill_mode='reflect',
-                horizontal_flip=False,
-                vertical_flip=False,
-                brightness_range=[1.0, 1.0]
-            )
-        self.datagen.fit(np.array(list(map(cv2.imread, glob.glob(os.path.join(dataset_path, 'train/*/*/*.png'))[:90]))))
+        if datagen_test is None:
+            self.datagen = ImageDataGenerator(
+                    featurewise_center=True,
+                    featurewise_std_normalization=True,
+                    rotation_range=0,
+                    width_shift_range=0.0,
+                    height_shift_range=0.0,
+                    zoom_range=[1.0, 1.0],
+                    fill_mode='reflect',
+                    horizontal_flip=False,
+                    vertical_flip=False,
+                    brightness_range=[1.0, 1.0]
+                )
+            # fit data generator on the firsts 90 images of the dataset
+            self.datagen.fit(np.array(list(map(cv2.imread,
+                                               glob.glob(os.path.join(dataset_path, 'train/*/*/*.png'))[:90]))))
+        else:
+            self.datagen = datagen_test
 
     def evaluate(self, model: Model, mode="train", batch_size=32, add_coordinate=True):
         if mode == "train":

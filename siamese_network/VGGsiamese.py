@@ -124,6 +124,19 @@ def save_results(path: str, history: pd.DataFrame):
         plt.xlabel('epoch')
         plt.legend()
         plt.savefig(os.path.join(path, 'loss.png'))
+        # Evaluate model and save results
+
+
+def evaluate_model(model, tester, currant_epoch, save_path):
+    if save_path is not None:
+        # evaluate model
+        result_list = tester.evaluate(model,
+                                      mode="both",
+                                      batch_size=save_path,
+                                      add_coordinate=True)
+        file_name = "evaluation_epoch_" + str(currant_epoch) + ".pickle"
+        with open(os.path.join(save_path, file_name), 'wb') as handle:
+            pickle.dump(result_list, handle)
 
 
 def main():
@@ -242,6 +255,10 @@ def main():
     datagen.fit(np.array(list(map(cv2.imread, train_images_paths[:200]))))
     datagen_test.fit(np.array(list(map(cv2.imread, test_images_paths[:200]))))
 
+    # create dataset tester
+    tester = DatasetTester(dataset_path=args.data_set_path,
+                           datagen_test=datagen_test)
+
     if len(test_images_paths) % 2 == 1 or len(train_images_paths) % 2 == 1:
         raise ValueError("The dataset is probably incorrect as it contain an even number of images")
     number_of_test_pair = len(test_images_paths) // 2
@@ -274,11 +291,13 @@ def main():
     df_history = pd.DataFrame(data=values.T,
                               columns=["epoch", ] + list(history.history.keys()) + ['fine_tuning']
                               )
+    evaluate_model(model, tester, args.number_of_epoch, model_save_path)
 
     # save current model to disk if a path was specified
     if model_save_path is not None:
         model.save(os.path.join(model_save_path, "model0.h5"), overwrite=True)
 
+    # update optimizer for fine tuning
     if args.optimizer == 'adam':
         opt = Adam(lr=args.learning_rate,
                    decay=args.learning_rate_decay)
@@ -313,6 +332,7 @@ def main():
         values = np.array([epoch, ] + list(h_values) + [[i] * len(epoch)])
         df_history = df_history.append(pd.DataFrame(data=values.T,
                                                     columns=["epoch"] + list(history.history.keys()) + ['fine_tuning']))
+        evaluate_model(model, tester, args.number_of_epoch * i, model_save_path)
         # save current model to disk if a path was specified
         if model_save_path is not None:
             model.save(os.path.join(model_save_path, "model" + str(i) + ".h5"), overwrite=True)
@@ -324,16 +344,6 @@ def main():
         df_history = df_history.assign(**kwargs)
 
     save_results(args.output_dir, df_history)
-
-    if args.output_dir is not None:
-        # evaluate model
-        tester = DatasetTester(args.data_set_path)
-        result_list = tester.evaluate(model,
-                                      mode="both",
-                                      batch_size=args.batch_size,
-                                      add_coordinate=True)
-        with open(os.path.join(args.output_dir, 'evaluation.pickle'), 'wb') as handle:
-            pickle.dump(result_list, handle)
 
 
 if __name__ == '__main__':
