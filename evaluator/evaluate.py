@@ -43,7 +43,7 @@ class DatasetTester:
                 )
             # fit data generator on the firsts 90 images of the dataset
             self.datagen.fit(np.array(list(map(cv2.imread,
-                                               glob.glob(os.path.join(dataset_path, 'train/*/*/*.png'))[:90]))))
+                                               glob.glob(os.path.join(dataset_path, 'train/*/*/*.jpg'))[:90]))))
         else:
             self.datagen = datagen_test
 
