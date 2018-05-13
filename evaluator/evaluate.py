@@ -52,6 +52,10 @@ class DatasetTester:
             dataset = 'train'
         elif mode == "test":
             dataset = 'test'
+        elif mode == "position":
+            dataset = 'position'
+        elif mode == "time":
+            dataset = 'time'
         else:
             train_result = self.evaluate(model, mode='train', batch_size=batch_size, add_coordinate=add_coordinate)
             test_result = self.evaluate(model, mode='test', batch_size=batch_size, add_coordinate=add_coordinate)
@@ -97,7 +101,7 @@ class DatasetTester:
                     try:
                         x, y = get_gps_coord(d, seq)
                     except ValueError as e:
-                        print("Error when loadinging coordinate:", str(e))
+                        print("Error when loading coordinate:", str(e))
                         continue
                 else:
                     print("Incorrect file name:", file_name)
