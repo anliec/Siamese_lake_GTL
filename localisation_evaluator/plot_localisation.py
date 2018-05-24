@@ -29,6 +29,8 @@ def main():
     current_file = None
     results_array = None
 
+    os.makedirs(args.out_path, exist_ok=True)
+
     def float_str_to_int(txt: str):
         return int(float(txt))
 
