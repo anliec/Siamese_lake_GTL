@@ -52,8 +52,8 @@ class DatasetTester:
             dataset = 'train'
         elif mode == "test":
             dataset = 'test'
-        elif mode == "position":
-            dataset = 'position'
+        elif mode == "localisation":
+            dataset = 'localisation'
         elif mode == "time":
             dataset = 'time'
         else:
