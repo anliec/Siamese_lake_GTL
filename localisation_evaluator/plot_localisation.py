@@ -35,7 +35,7 @@ def main():
         return int(float(txt))
 
     for i, (file1, file2, score) in enumerate(results):
-        print(i, '/', len(results), '(', len(results) * 100 // i, '%)')
+        print(i, '/', len(results), '(', i * 100 // len(results), '%)')
         d1, s1, _, _, offset1, d2, s2, _, _, offset2 = \
             list(map(float_str_to_int, os.path.splitext(os.path.split(file1)[1])[0].split('_')))
         if f1 != file1 or f2 != file2 or f1 is None or f2 is None:
