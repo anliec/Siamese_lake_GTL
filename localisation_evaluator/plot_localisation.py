@@ -33,6 +33,7 @@ def main():
         return int(float(txt))
 
     for file1, file2, score in results:
+        print(file1, len(os.path.splitext(os.path.split(file1)[1])[0].split('_')))
         d1, s1, _, _, offset1, d2, s2, _, _, offset2 = \
             list(map(float_str_to_int, os.path.splitext(os.path.split(file1)[1])[0].split('_')))
         if f1 != file1 or f2 != file2 or f1 is None or f2 is None:
