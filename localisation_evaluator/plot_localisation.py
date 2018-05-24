@@ -29,9 +29,12 @@ def main():
     current_file = None
     results_array = None
 
+    def float_str_to_int(txt: str):
+        return int(float(txt))
+
     for file1, file2, score in results:
         d1, s1, _, _, offset1, d2, s2, _, _, offset2 = \
-            list(map(int, os.path.splitext(os.path.split(file1)[1])[0].split('_')))
+            list(map(float_str_to_int, os.path.splitext(os.path.split(file1)[1])[0].split('_')))
         if f1 != file1 or f2 != file2 or f1 is None or f2 is None:
             # if we have already read some results, plot them to a file
             if current_file is not None:
