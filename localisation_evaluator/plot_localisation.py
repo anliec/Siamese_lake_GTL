@@ -41,7 +41,7 @@ def main():
         if f1 != file1 or f2 != file2 or f1 is None or f2 is None:
             # if we have already read some results, plot them to a file
             if current_file is not None:
-                plt.imshow(results_array, extent=(-MAX_OFFSET, -MAX_OFFSET, MAX_OFFSET, MAX_OFFSET))
+                plt.imshow(results_array, extent=(-MAX_OFFSET, MAX_OFFSET, -MAX_OFFSET, MAX_OFFSET))
                 plt.savefig(os.path.join(args.out_path, current_file))
             # reset results array as well as file name
             current_file = "_".join(map(str, [d1, s1, d2, s2])) + ".png"
