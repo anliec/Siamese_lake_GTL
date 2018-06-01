@@ -61,8 +61,6 @@ def main():
         results_array[offset1 + MAX_OFFSET, offset2 + MAX_OFFSET] = score
         old_d1, old_s1, old_d2, old_s2 = d1, s1, d2, s2
         # pr.disable()
-        if i > 1000:
-            break
 
     # s = io.StringIO()
     # ps = pstats.Stats(pr, stream=s).sort_stats('cumulative')
