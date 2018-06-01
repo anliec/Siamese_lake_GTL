@@ -48,6 +48,8 @@ def main():
             results_array = np.zeros(shape=(2 * MAX_OFFSET + 1, 2 * MAX_OFFSET + 1), dtype=float)
         # add current result to array
         results_array[offset1 + MAX_OFFSET, offset2 + MAX_OFFSET] = score
+        f1 = file1
+        f2 = file2
 
 
 if __name__ == "__main__":
