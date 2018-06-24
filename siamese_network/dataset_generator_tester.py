@@ -35,6 +35,8 @@ def main():
     for i, ((im1, im2), label) in enumerate(triple_generator):
         if i > batch_size:
             break
+        print(i, end='\r')
+        print(im1.shape, im2.shape)
         cv2.imwrite(os.path.join(out_dir, "{}_{:04d}_left.png".format(label, i)), im1)
         cv2.imwrite(os.path.join(out_dir, "{}_{:04d}_right.png".format(label, i)), im2)
 
