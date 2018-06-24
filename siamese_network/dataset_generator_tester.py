@@ -36,7 +36,7 @@ def main():
     for b, ((im_batch_1, im_batch_2), label) in enumerate(triple_generator):
         for i, (im1, im2) in enumerate(zip(im_batch_1, im_batch_2)):
             path = os.path.join(out_dir, "{}_{:04d}_left.png".format(label[0][0], i))
-            print(i + b * batch_size, path, im1.dtype)
+            print(i + b * batch_size, path, im1.dtype, im1.min(), im1.max())
             cv2.imwrite(path, im1)
             cv2.imwrite(os.path.join(out_dir, "{}_{:04d}_right.png".format(label[0][0], i)), im2)
         if b >= number_of_saved_batch:
