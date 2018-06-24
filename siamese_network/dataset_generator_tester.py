@@ -10,6 +10,7 @@ from siamese_network.siamese import data_triple_generator_from_dir
 def main():
     dataset_path = "data"
     batch_size = 100
+    number_of_saved_batch = 1
     out_dir = "generated_pair_examples"
     datagen = ImageDataGenerator(
         featurewise_center=True,
@@ -25,20 +26,21 @@ def main():
         brightness_range=(0.7, 1.3)
     )
     train_images_paths = glob.glob(os.path.join("data", 'train/*/*/*'))
-    datagen.fit(np.array(list(map(cv2.imread, train_images_paths[:200]))))
+    datagen.fit(np.array(list(map(cv2.imread, train_images_paths[:20]))))
     # init triple generator (image 1, image 2, label)
     triple_generator = data_triple_generator_from_dir(datagen,
                                                       os.path.join(dataset_path, 'train'),
                                                       batch_size,
                                                       include_label=True)
     os.makedirs(out_dir, exist_ok=True)
-    for i, ((im1, im2), label) in enumerate(triple_generator):
-        if i > batch_size:
+    for b, ((im_batch_1, im_batch_2), label) in enumerate(triple_generator):
+        for i, (im1, im2) in enumerate(zip(im_batch_1, im_batch_2)):
+            print(i + b * batch_size, end='\r')
+            print(im1.shape, im2.shape)
+            cv2.imwrite(os.path.join(out_dir, "{}_{:04d}_left.png".format(label, i)), im1)
+            cv2.imwrite(os.path.join(out_dir, "{}_{:04d}_right.png".format(label, i)), im2)
+        if b >= number_of_saved_batch:
             break
-        print(i, end='\r')
-        print(im1.shape, im2.shape)
-        cv2.imwrite(os.path.join(out_dir, "{}_{:04d}_left.png".format(label, i)), im1)
-        cv2.imwrite(os.path.join(out_dir, "{}_{:04d}_right.png".format(label, i)), im2)
 
 
 if __name__ == '__main__':
