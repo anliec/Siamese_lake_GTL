@@ -32,7 +32,7 @@ def main():
                                                       batch_size,
                                                       include_label=True)
     os.makedirs(out_dir, exist_ok=True)
-    for i, (im1, im2, label) in enumerate(triple_generator):
+    for i, ((im1, im2), label) in enumerate(triple_generator):
         if i > batch_size:
             break
         cv2.imwrite(os.path.join(out_dir, "{}_{:04d}_left.png".format(label, i)), im1)
