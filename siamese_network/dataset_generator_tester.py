@@ -35,9 +35,9 @@ def main():
     os.makedirs(out_dir, exist_ok=True)
     for b, ((im_batch_1, im_batch_2), label) in enumerate(triple_generator):
         for i, (im1, im2) in enumerate(zip(im_batch_1, im_batch_2)):
-            print(i + b * batch_size, end='\r')
-            print(im1.shape, im2.shape)
-            cv2.imwrite(os.path.join(out_dir, "{}_{:04d}_left.png".format(label, i)), im1)
+            path = os.path.join(out_dir, "{}_{:04d}_left.png".format(label, i))
+            print(i + b * batch_size, path, end='\r')
+            cv2.imwrite(path, im1)
             cv2.imwrite(os.path.join(out_dir, "{}_{:04d}_right.png".format(label, i)), im2)
         if b >= number_of_saved_batch:
             break
