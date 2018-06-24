@@ -3,6 +3,7 @@
 !plotter/
 !evaluator/
 !localisation_evaluator/
+!siamese_network/
 
 !*.py
 !*.md
