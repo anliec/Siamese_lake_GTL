@@ -172,6 +172,10 @@ def main():
                         default=1,
                         type=int,
                         dest="number_of_epoch")
+    parser.add_argument('-ef', '--epochs-first-step',
+                        default=None,
+                        type=int,
+                        dest="number_of_epoch_first_step")
     parser.add_argument('-d', '--dropout',
                         default=0.0,
                         type=float,
@@ -202,6 +206,8 @@ def main():
         os.makedirs(model_save_path, exist_ok=True)
     else:
         model_save_path = None
+    if args.number_of_epoch_first_step is None:
+        args.number_of_epoch_first_step = args.number_of_epoch
 
     # check dataset
     if not os.path.isdir(args.data_set_path):
@@ -279,7 +285,7 @@ def main():
     # train the top layer of the classifier
     history = model.fit_generator(generator=triple_generator,
                                   steps_per_epoch=number_of_train_pair // args.batch_size + 1,
-                                  epochs=args.number_of_epoch,
+                                  epochs=args.number_of_epoch_first_step,
                                   verbose=1,
                                   validation_data=triple_generator_test,
                                   validation_steps=number_of_test_pair // args.batch_size + 1,
