@@ -67,10 +67,10 @@ def get_siamese_vgg_model(image_shape=(224, 224, 3), weights='imagenet', train_f
                                      add_batch_norm=add_batch_norm,
                                      merge_type=merge_type)
 
-    # top = Dense(512, activation="relu")(siamese_vgg)
-    # if dropout is not None:
-    #     top = Dropout(dropout)(top)
-    top = Dense(128, activation="relu")(siamese_vgg)
+    top = Dense(512, activation="relu")(siamese_vgg)
+    if dropout is not None:
+        top = Dropout(dropout)(top)
+    top = Dense(512, activation="relu")(top)
     if dropout is not None:
         top = Dropout(dropout)(top)
     top = Dense(2, activation="softmax")(top)
@@ -221,6 +221,7 @@ def main():
     model.summary()
 
     model.compile(loss='categorical_crossentropy',
+                  # categorical_crossentropy with 2 labels is the same than binary_crossentropy
                   optimizer=args.optimizer,
                   metrics=['categorical_accuracy'])
 
