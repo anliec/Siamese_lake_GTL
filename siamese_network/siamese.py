@@ -107,16 +107,18 @@ def data_triple_generator_from_dir(datagen: ImageDataGenerator, dataset_dir, bat
                                              shuffle=shuffle,
                                              seed=seed,
                                              save_to_dir=right_sav_dir)
-    for (im1, label1), (im2, label2) in zip(left_flow, right_flow):
+    for (images_left, labels_left), (image_right, labels_right) in zip(left_flow, right_flow):
+        # ensure label are the same (do not ensure pair are right...)
+        assert np.alltrue(labels_left == labels_right)
         if random.random() <= 0.5:
             if include_label:
-                yield [im1, im2], label1
+                yield [images_left, image_right], labels_left
             else:
-                yield [im1, im2]
-        else:
+                yield [images_left, image_right]
+        else:  # useless if the siamese merging method is symmetric, but can't harm.
             if include_label:
-                yield [im2, im1], label1
+                yield [image_right, images_left], labels_left
             else:
-                yield [im2, im1]
+                yield [image_right, images_left]
 
 
